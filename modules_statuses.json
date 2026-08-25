@@ -1,0 +1,8 @@
+{
+    "DataMaster": true,
+    "Budget": true,
+    "Transaction": true,
+    "Report": true,
+    "User": true,
+    "Disbursement": true
+}

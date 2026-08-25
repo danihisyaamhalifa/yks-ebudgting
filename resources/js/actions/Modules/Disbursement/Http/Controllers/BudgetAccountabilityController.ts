@@ -1,0 +1,425 @@
+import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
+/**
+* @see \Modules\Disbursement\Http\Controllers\BudgetAccountabilityController::index
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:35
+ * @route '/api/v1/budget-accountabilities'
+ */
+export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: index.url(options),
+    method: 'get',
+})
+
+index.definition = {
+    methods: ["get","head"],
+    url: '/api/v1/budget-accountabilities',
+} satisfies RouteDefinition<["get","head"]>
+
+/**
+* @see \Modules\Disbursement\Http\Controllers\BudgetAccountabilityController::index
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:35
+ * @route '/api/v1/budget-accountabilities'
+ */
+index.url = (options?: RouteQueryOptions) => {
+    return index.definition.url + queryParams(options)
+}
+
+/**
+* @see \Modules\Disbursement\Http\Controllers\BudgetAccountabilityController::index
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:35
+ * @route '/api/v1/budget-accountabilities'
+ */
+index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: index.url(options),
+    method: 'get',
+})
+/**
+* @see \Modules\Disbursement\Http\Controllers\BudgetAccountabilityController::index
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:35
+ * @route '/api/v1/budget-accountabilities'
+ */
+index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
+    url: index.url(options),
+    method: 'head',
+})
+
+    /**
+* @see \Modules\Disbursement\Http\Controllers\BudgetAccountabilityController::index
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:35
+ * @route '/api/v1/budget-accountabilities'
+ */
+    const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: index.url(options),
+        method: 'get',
+    })
+
+            /**
+* @see \Modules\Disbursement\Http\Controllers\BudgetAccountabilityController::index
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:35
+ * @route '/api/v1/budget-accountabilities'
+ */
+        indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: index.url(options),
+            method: 'get',
+        })
+            /**
+* @see \Modules\Disbursement\Http\Controllers\BudgetAccountabilityController::index
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:35
+ * @route '/api/v1/budget-accountabilities'
+ */
+        indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: index.url({
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    index.form = indexForm
+/**
+* @see \Modules\Disbursement\Http\Controllers\BudgetAccountabilityController::store
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:57
+ * @route '/api/v1/budget-accountabilities'
+ */
+export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: store.url(options),
+    method: 'post',
+})
+
+store.definition = {
+    methods: ["post"],
+    url: '/api/v1/budget-accountabilities',
+} satisfies RouteDefinition<["post"]>
+
+/**
+* @see \Modules\Disbursement\Http\Controllers\BudgetAccountabilityController::store
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:57
+ * @route '/api/v1/budget-accountabilities'
+ */
+store.url = (options?: RouteQueryOptions) => {
+    return store.definition.url + queryParams(options)
+}
+
+/**
+* @see \Modules\Disbursement\Http\Controllers\BudgetAccountabilityController::store
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:57
+ * @route '/api/v1/budget-accountabilities'
+ */
+store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: store.url(options),
+    method: 'post',
+})
+
+    /**
+* @see \Modules\Disbursement\Http\Controllers\BudgetAccountabilityController::store
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:57
+ * @route '/api/v1/budget-accountabilities'
+ */
+    const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: store.url(options),
+        method: 'post',
+    })
+
+            /**
+* @see \Modules\Disbursement\Http\Controllers\BudgetAccountabilityController::store
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:57
+ * @route '/api/v1/budget-accountabilities'
+ */
+        storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: store.url(options),
+            method: 'post',
+        })
+    
+    store.form = storeForm
+/**
+* @see \Modules\Disbursement\Http\Controllers\BudgetAccountabilityController::show
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:139
+ * @route '/api/v1/budget-accountabilities/{budget_accountability}'
+ */
+export const show = (args: { budget_accountability: string | number } | [budget_accountability: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: show.url(args, options),
+    method: 'get',
+})
+
+show.definition = {
+    methods: ["get","head"],
+    url: '/api/v1/budget-accountabilities/{budget_accountability}',
+} satisfies RouteDefinition<["get","head"]>
+
+/**
+* @see \Modules\Disbursement\Http\Controllers\BudgetAccountabilityController::show
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:139
+ * @route '/api/v1/budget-accountabilities/{budget_accountability}'
+ */
+show.url = (args: { budget_accountability: string | number } | [budget_accountability: string | number ] | string | number, options?: RouteQueryOptions) => {
+    if (typeof args === 'string' || typeof args === 'number') {
+        args = { budget_accountability: args }
+    }
+
+    
+    if (Array.isArray(args)) {
+        args = {
+                    budget_accountability: args[0],
+                }
+    }
+
+    args = applyUrlDefaults(args)
+
+    const parsedArgs = {
+                        budget_accountability: args.budget_accountability,
+                }
+
+    return show.definition.url
+            .replace('{budget_accountability}', parsedArgs.budget_accountability.toString())
+            .replace(/\/+$/, '') + queryParams(options)
+}
+
+/**
+* @see \Modules\Disbursement\Http\Controllers\BudgetAccountabilityController::show
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:139
+ * @route '/api/v1/budget-accountabilities/{budget_accountability}'
+ */
+show.get = (args: { budget_accountability: string | number } | [budget_accountability: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: show.url(args, options),
+    method: 'get',
+})
+/**
+* @see \Modules\Disbursement\Http\Controllers\BudgetAccountabilityController::show
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:139
+ * @route '/api/v1/budget-accountabilities/{budget_accountability}'
+ */
+show.head = (args: { budget_accountability: string | number } | [budget_accountability: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
+    url: show.url(args, options),
+    method: 'head',
+})
+
+    /**
+* @see \Modules\Disbursement\Http\Controllers\BudgetAccountabilityController::show
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:139
+ * @route '/api/v1/budget-accountabilities/{budget_accountability}'
+ */
+    const showForm = (args: { budget_accountability: string | number } | [budget_accountability: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: show.url(args, options),
+        method: 'get',
+    })
+
+            /**
+* @see \Modules\Disbursement\Http\Controllers\BudgetAccountabilityController::show
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:139
+ * @route '/api/v1/budget-accountabilities/{budget_accountability}'
+ */
+        showForm.get = (args: { budget_accountability: string | number } | [budget_accountability: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: show.url(args, options),
+            method: 'get',
+        })
+            /**
+* @see \Modules\Disbursement\Http\Controllers\BudgetAccountabilityController::show
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:139
+ * @route '/api/v1/budget-accountabilities/{budget_accountability}'
+ */
+        showForm.head = (args: { budget_accountability: string | number } | [budget_accountability: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: show.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    show.form = showForm
+/**
+* @see \Modules\Disbursement\Http\Controllers\BudgetAccountabilityController::update
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:169
+ * @route '/api/v1/budget-accountabilities/{budget_accountability}'
+ */
+export const update = (args: { budget_accountability: string | number } | [budget_accountability: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
+    url: update.url(args, options),
+    method: 'put',
+})
+
+update.definition = {
+    methods: ["put","patch"],
+    url: '/api/v1/budget-accountabilities/{budget_accountability}',
+} satisfies RouteDefinition<["put","patch"]>
+
+/**
+* @see \Modules\Disbursement\Http\Controllers\BudgetAccountabilityController::update
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:169
+ * @route '/api/v1/budget-accountabilities/{budget_accountability}'
+ */
+update.url = (args: { budget_accountability: string | number } | [budget_accountability: string | number ] | string | number, options?: RouteQueryOptions) => {
+    if (typeof args === 'string' || typeof args === 'number') {
+        args = { budget_accountability: args }
+    }
+
+    
+    if (Array.isArray(args)) {
+        args = {
+                    budget_accountability: args[0],
+                }
+    }
+
+    args = applyUrlDefaults(args)
+
+    const parsedArgs = {
+                        budget_accountability: args.budget_accountability,
+                }
+
+    return update.definition.url
+            .replace('{budget_accountability}', parsedArgs.budget_accountability.toString())
+            .replace(/\/+$/, '') + queryParams(options)
+}
+
+/**
+* @see \Modules\Disbursement\Http\Controllers\BudgetAccountabilityController::update
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:169
+ * @route '/api/v1/budget-accountabilities/{budget_accountability}'
+ */
+update.put = (args: { budget_accountability: string | number } | [budget_accountability: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
+    url: update.url(args, options),
+    method: 'put',
+})
+/**
+* @see \Modules\Disbursement\Http\Controllers\BudgetAccountabilityController::update
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:169
+ * @route '/api/v1/budget-accountabilities/{budget_accountability}'
+ */
+update.patch = (args: { budget_accountability: string | number } | [budget_accountability: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
+    url: update.url(args, options),
+    method: 'patch',
+})
+
+    /**
+* @see \Modules\Disbursement\Http\Controllers\BudgetAccountabilityController::update
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:169
+ * @route '/api/v1/budget-accountabilities/{budget_accountability}'
+ */
+    const updateForm = (args: { budget_accountability: string | number } | [budget_accountability: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: update.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'PUT',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \Modules\Disbursement\Http\Controllers\BudgetAccountabilityController::update
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:169
+ * @route '/api/v1/budget-accountabilities/{budget_accountability}'
+ */
+        updateForm.put = (args: { budget_accountability: string | number } | [budget_accountability: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: update.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'PUT',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+            /**
+* @see \Modules\Disbursement\Http\Controllers\BudgetAccountabilityController::update
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:169
+ * @route '/api/v1/budget-accountabilities/{budget_accountability}'
+ */
+        updateForm.patch = (args: { budget_accountability: string | number } | [budget_accountability: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: update.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'PATCH',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+    
+    update.form = updateForm
+/**
+* @see \Modules\Disbursement\Http\Controllers\BudgetAccountabilityController::destroy
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:243
+ * @route '/api/v1/budget-accountabilities/{budget_accountability}'
+ */
+export const destroy = (args: { budget_accountability: string | number } | [budget_accountability: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
+    url: destroy.url(args, options),
+    method: 'delete',
+})
+
+destroy.definition = {
+    methods: ["delete"],
+    url: '/api/v1/budget-accountabilities/{budget_accountability}',
+} satisfies RouteDefinition<["delete"]>
+
+/**
+* @see \Modules\Disbursement\Http\Controllers\BudgetAccountabilityController::destroy
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:243
+ * @route '/api/v1/budget-accountabilities/{budget_accountability}'
+ */
+destroy.url = (args: { budget_accountability: string | number } | [budget_accountability: string | number ] | string | number, options?: RouteQueryOptions) => {
+    if (typeof args === 'string' || typeof args === 'number') {
+        args = { budget_accountability: args }
+    }
+
+    
+    if (Array.isArray(args)) {
+        args = {
+                    budget_accountability: args[0],
+                }
+    }
+
+    args = applyUrlDefaults(args)
+
+    const parsedArgs = {
+                        budget_accountability: args.budget_accountability,
+                }
+
+    return destroy.definition.url
+            .replace('{budget_accountability}', parsedArgs.budget_accountability.toString())
+            .replace(/\/+$/, '') + queryParams(options)
+}
+
+/**
+* @see \Modules\Disbursement\Http\Controllers\BudgetAccountabilityController::destroy
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:243
+ * @route '/api/v1/budget-accountabilities/{budget_accountability}'
+ */
+destroy.delete = (args: { budget_accountability: string | number } | [budget_accountability: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
+    url: destroy.url(args, options),
+    method: 'delete',
+})
+
+    /**
+* @see \Modules\Disbursement\Http\Controllers\BudgetAccountabilityController::destroy
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:243
+ * @route '/api/v1/budget-accountabilities/{budget_accountability}'
+ */
+    const destroyForm = (args: { budget_accountability: string | number } | [budget_accountability: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: destroy.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'DELETE',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \Modules\Disbursement\Http\Controllers\BudgetAccountabilityController::destroy
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:243
+ * @route '/api/v1/budget-accountabilities/{budget_accountability}'
+ */
+        destroyForm.delete = (args: { budget_accountability: string | number } | [budget_accountability: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: destroy.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'DELETE',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+    
+    destroy.form = destroyForm
+const BudgetAccountabilityController = { index, store, show, update, destroy }
+
+export default BudgetAccountabilityController
