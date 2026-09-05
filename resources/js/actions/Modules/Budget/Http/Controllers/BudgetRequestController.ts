@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::index
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:39
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:41
  * @route '/api/v1/budget-requests'
  */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ index.definition = {
 
 /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::index
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:39
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:41
  * @route '/api/v1/budget-requests'
  */
 index.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::index
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:39
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:41
  * @route '/api/v1/budget-requests'
  */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -34,7 +34,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::index
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:39
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:41
  * @route '/api/v1/budget-requests'
  */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -44,7 +44,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::index
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:39
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:41
  * @route '/api/v1/budget-requests'
  */
     const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -54,7 +54,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::index
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:39
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:41
  * @route '/api/v1/budget-requests'
  */
         indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -63,7 +63,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::index
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:39
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:41
  * @route '/api/v1/budget-requests'
  */
         indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -79,7 +79,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     index.form = indexForm
 /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::store
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:83
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:85
  * @route '/api/v1/budget-requests'
  */
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -94,7 +94,7 @@ store.definition = {
 
 /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::store
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:83
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:85
  * @route '/api/v1/budget-requests'
  */
 store.url = (options?: RouteQueryOptions) => {
@@ -103,7 +103,7 @@ store.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::store
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:83
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:85
  * @route '/api/v1/budget-requests'
  */
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -113,7 +113,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
     /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::store
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:83
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:85
  * @route '/api/v1/budget-requests'
  */
     const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -123,7 +123,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
             /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::store
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:83
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:85
  * @route '/api/v1/budget-requests'
  */
         storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -134,7 +134,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     store.form = storeForm
 /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::show
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:251
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:241
  * @route '/api/v1/budget-requests/{budget_request}'
  */
 export const show = (args: { budget_request: string | number } | [budget_request: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -149,7 +149,7 @@ show.definition = {
 
 /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::show
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:251
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:241
  * @route '/api/v1/budget-requests/{budget_request}'
  */
 show.url = (args: { budget_request: string | number } | [budget_request: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -177,7 +177,7 @@ show.url = (args: { budget_request: string | number } | [budget_request: string 
 
 /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::show
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:251
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:241
  * @route '/api/v1/budget-requests/{budget_request}'
  */
 show.get = (args: { budget_request: string | number } | [budget_request: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -186,7 +186,7 @@ show.get = (args: { budget_request: string | number } | [budget_request: string 
 })
 /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::show
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:251
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:241
  * @route '/api/v1/budget-requests/{budget_request}'
  */
 show.head = (args: { budget_request: string | number } | [budget_request: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -196,7 +196,7 @@ show.head = (args: { budget_request: string | number } | [budget_request: string
 
     /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::show
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:251
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:241
  * @route '/api/v1/budget-requests/{budget_request}'
  */
     const showForm = (args: { budget_request: string | number } | [budget_request: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -206,7 +206,7 @@ show.head = (args: { budget_request: string | number } | [budget_request: string
 
             /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::show
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:251
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:241
  * @route '/api/v1/budget-requests/{budget_request}'
  */
         showForm.get = (args: { budget_request: string | number } | [budget_request: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -215,7 +215,7 @@ show.head = (args: { budget_request: string | number } | [budget_request: string
         })
             /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::show
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:251
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:241
  * @route '/api/v1/budget-requests/{budget_request}'
  */
         showForm.head = (args: { budget_request: string | number } | [budget_request: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -231,7 +231,7 @@ show.head = (args: { budget_request: string | number } | [budget_request: string
     show.form = showForm
 /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::update
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:306
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:364
  * @route '/api/v1/budget-requests/{budget_request}'
  */
 export const update = (args: { budget_request: string | number } | [budget_request: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -246,7 +246,7 @@ update.definition = {
 
 /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::update
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:306
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:364
  * @route '/api/v1/budget-requests/{budget_request}'
  */
 update.url = (args: { budget_request: string | number } | [budget_request: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -274,7 +274,7 @@ update.url = (args: { budget_request: string | number } | [budget_request: strin
 
 /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::update
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:306
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:364
  * @route '/api/v1/budget-requests/{budget_request}'
  */
 update.put = (args: { budget_request: string | number } | [budget_request: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -283,7 +283,7 @@ update.put = (args: { budget_request: string | number } | [budget_request: strin
 })
 /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::update
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:306
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:364
  * @route '/api/v1/budget-requests/{budget_request}'
  */
 update.patch = (args: { budget_request: string | number } | [budget_request: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -293,7 +293,7 @@ update.patch = (args: { budget_request: string | number } | [budget_request: str
 
     /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::update
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:306
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:364
  * @route '/api/v1/budget-requests/{budget_request}'
  */
     const updateForm = (args: { budget_request: string | number } | [budget_request: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -308,7 +308,7 @@ update.patch = (args: { budget_request: string | number } | [budget_request: str
 
             /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::update
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:306
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:364
  * @route '/api/v1/budget-requests/{budget_request}'
  */
         updateForm.put = (args: { budget_request: string | number } | [budget_request: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -322,7 +322,7 @@ update.patch = (args: { budget_request: string | number } | [budget_request: str
         })
             /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::update
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:306
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:364
  * @route '/api/v1/budget-requests/{budget_request}'
  */
         updateForm.patch = (args: { budget_request: string | number } | [budget_request: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -422,7 +422,7 @@ destroy.delete = (args: { budget_request: string | number } | [budget_request: s
     destroy.form = destroyForm
 /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::submit
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:775
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:739
  * @route '/api/v1/budget-requests/{id}/submit'
  */
 export const submit = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -437,7 +437,7 @@ submit.definition = {
 
 /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::submit
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:775
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:739
  * @route '/api/v1/budget-requests/{id}/submit'
  */
 submit.url = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -465,7 +465,7 @@ submit.url = (args: { id: string | number } | [id: string | number ] | string | 
 
 /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::submit
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:775
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:739
  * @route '/api/v1/budget-requests/{id}/submit'
  */
 submit.post = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -475,7 +475,7 @@ submit.post = (args: { id: string | number } | [id: string | number ] | string |
 
     /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::submit
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:775
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:739
  * @route '/api/v1/budget-requests/{id}/submit'
  */
     const submitForm = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -485,7 +485,7 @@ submit.post = (args: { id: string | number } | [id: string | number ] | string |
 
             /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::submit
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:775
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:739
  * @route '/api/v1/budget-requests/{id}/submit'
  */
         submitForm.post = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -496,7 +496,7 @@ submit.post = (args: { id: string | number } | [id: string | number ] | string |
     submit.form = submitForm
 /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::resubmit
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:860
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:829
  * @route '/api/v1/budget-requests/{id}/resubmit'
  */
 export const resubmit = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -511,7 +511,7 @@ resubmit.definition = {
 
 /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::resubmit
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:860
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:829
  * @route '/api/v1/budget-requests/{id}/resubmit'
  */
 resubmit.url = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -539,7 +539,7 @@ resubmit.url = (args: { id: string | number } | [id: string | number ] | string 
 
 /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::resubmit
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:860
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:829
  * @route '/api/v1/budget-requests/{id}/resubmit'
  */
 resubmit.post = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -549,7 +549,7 @@ resubmit.post = (args: { id: string | number } | [id: string | number ] | string
 
     /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::resubmit
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:860
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:829
  * @route '/api/v1/budget-requests/{id}/resubmit'
  */
     const resubmitForm = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -559,7 +559,7 @@ resubmit.post = (args: { id: string | number } | [id: string | number ] | string
 
             /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::resubmit
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:860
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:829
  * @route '/api/v1/budget-requests/{id}/resubmit'
  */
         resubmitForm.post = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -570,7 +570,7 @@ resubmit.post = (args: { id: string | number } | [id: string | number ] | string
     resubmit.form = resubmitForm
 /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::approvals
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:696
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:660
  * @route '/api/v1/budget-requests/{id}/approvals'
  */
 export const approvals = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -585,7 +585,7 @@ approvals.definition = {
 
 /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::approvals
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:696
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:660
  * @route '/api/v1/budget-requests/{id}/approvals'
  */
 approvals.url = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -613,7 +613,7 @@ approvals.url = (args: { id: string | number } | [id: string | number ] | string
 
 /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::approvals
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:696
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:660
  * @route '/api/v1/budget-requests/{id}/approvals'
  */
 approvals.get = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -622,7 +622,7 @@ approvals.get = (args: { id: string | number } | [id: string | number ] | string
 })
 /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::approvals
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:696
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:660
  * @route '/api/v1/budget-requests/{id}/approvals'
  */
 approvals.head = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -632,7 +632,7 @@ approvals.head = (args: { id: string | number } | [id: string | number ] | strin
 
     /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::approvals
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:696
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:660
  * @route '/api/v1/budget-requests/{id}/approvals'
  */
     const approvalsForm = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -642,7 +642,7 @@ approvals.head = (args: { id: string | number } | [id: string | number ] | strin
 
             /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::approvals
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:696
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:660
  * @route '/api/v1/budget-requests/{id}/approvals'
  */
         approvalsForm.get = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -651,7 +651,7 @@ approvals.head = (args: { id: string | number } | [id: string | number ] | strin
         })
             /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::approvals
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:696
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:660
  * @route '/api/v1/budget-requests/{id}/approvals'
  */
         approvalsForm.head = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -667,7 +667,7 @@ approvals.head = (args: { id: string | number } | [id: string | number ] | strin
     approvals.form = approvalsForm
 /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::approvalHistory
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:755
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:719
  * @route '/api/v1/budget-requests/{request}/approval-history'
  */
 export const approvalHistory = (args: { request: number | { id: number } } | [request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -682,7 +682,7 @@ approvalHistory.definition = {
 
 /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::approvalHistory
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:755
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:719
  * @route '/api/v1/budget-requests/{request}/approval-history'
  */
 approvalHistory.url = (args: { request: number | { id: number } } | [request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -715,7 +715,7 @@ approvalHistory.url = (args: { request: number | { id: number } } | [request: nu
 
 /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::approvalHistory
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:755
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:719
  * @route '/api/v1/budget-requests/{request}/approval-history'
  */
 approvalHistory.get = (args: { request: number | { id: number } } | [request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -724,7 +724,7 @@ approvalHistory.get = (args: { request: number | { id: number } } | [request: nu
 })
 /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::approvalHistory
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:755
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:719
  * @route '/api/v1/budget-requests/{request}/approval-history'
  */
 approvalHistory.head = (args: { request: number | { id: number } } | [request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -734,7 +734,7 @@ approvalHistory.head = (args: { request: number | { id: number } } | [request: n
 
     /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::approvalHistory
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:755
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:719
  * @route '/api/v1/budget-requests/{request}/approval-history'
  */
     const approvalHistoryForm = (args: { request: number | { id: number } } | [request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -744,7 +744,7 @@ approvalHistory.head = (args: { request: number | { id: number } } | [request: n
 
             /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::approvalHistory
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:755
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:719
  * @route '/api/v1/budget-requests/{request}/approval-history'
  */
         approvalHistoryForm.get = (args: { request: number | { id: number } } | [request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -753,7 +753,7 @@ approvalHistory.head = (args: { request: number | { id: number } } | [request: n
         })
             /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::approvalHistory
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:755
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:719
  * @route '/api/v1/budget-requests/{request}/approval-history'
  */
         approvalHistoryForm.head = (args: { request: number | { id: number } } | [request: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -769,7 +769,7 @@ approvalHistory.head = (args: { request: number | { id: number } } | [request: n
     approvalHistory.form = approvalHistoryForm
 /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::approve
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:962
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:931
  * @route '/api/v1/budget-request-approvals/{id}/approve'
  */
 export const approve = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -784,7 +784,7 @@ approve.definition = {
 
 /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::approve
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:962
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:931
  * @route '/api/v1/budget-request-approvals/{id}/approve'
  */
 approve.url = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -812,7 +812,7 @@ approve.url = (args: { id: string | number } | [id: string | number ] | string |
 
 /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::approve
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:962
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:931
  * @route '/api/v1/budget-request-approvals/{id}/approve'
  */
 approve.post = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -822,7 +822,7 @@ approve.post = (args: { id: string | number } | [id: string | number ] | string 
 
     /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::approve
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:962
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:931
  * @route '/api/v1/budget-request-approvals/{id}/approve'
  */
     const approveForm = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -832,7 +832,7 @@ approve.post = (args: { id: string | number } | [id: string | number ] | string 
 
             /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::approve
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:962
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:931
  * @route '/api/v1/budget-request-approvals/{id}/approve'
  */
         approveForm.post = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -843,7 +843,7 @@ approve.post = (args: { id: string | number } | [id: string | number ] | string 
     approve.form = approveForm
 /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::reject
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:1035
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:1004
  * @route '/api/v1/budget-request-approvals/{id}/reject'
  */
 export const reject = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -858,7 +858,7 @@ reject.definition = {
 
 /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::reject
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:1035
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:1004
  * @route '/api/v1/budget-request-approvals/{id}/reject'
  */
 reject.url = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -886,7 +886,7 @@ reject.url = (args: { id: string | number } | [id: string | number ] | string | 
 
 /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::reject
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:1035
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:1004
  * @route '/api/v1/budget-request-approvals/{id}/reject'
  */
 reject.post = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -896,7 +896,7 @@ reject.post = (args: { id: string | number } | [id: string | number ] | string |
 
     /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::reject
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:1035
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:1004
  * @route '/api/v1/budget-request-approvals/{id}/reject'
  */
     const rejectForm = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -906,7 +906,7 @@ reject.post = (args: { id: string | number } | [id: string | number ] | string |
 
             /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::reject
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:1035
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:1004
  * @route '/api/v1/budget-request-approvals/{id}/reject'
  */
         rejectForm.post = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -917,7 +917,7 @@ reject.post = (args: { id: string | number } | [id: string | number ] | string |
     reject.form = rejectForm
 /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::returned
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:1101
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:1070
  * @route '/api/v1/budget-request-approvals/{id}/returned'
  */
 export const returned = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -932,7 +932,7 @@ returned.definition = {
 
 /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::returned
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:1101
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:1070
  * @route '/api/v1/budget-request-approvals/{id}/returned'
  */
 returned.url = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -960,7 +960,7 @@ returned.url = (args: { id: string | number } | [id: string | number ] | string 
 
 /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::returned
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:1101
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:1070
  * @route '/api/v1/budget-request-approvals/{id}/returned'
  */
 returned.post = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -970,7 +970,7 @@ returned.post = (args: { id: string | number } | [id: string | number ] | string
 
     /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::returned
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:1101
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:1070
  * @route '/api/v1/budget-request-approvals/{id}/returned'
  */
     const returnedForm = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -980,7 +980,7 @@ returned.post = (args: { id: string | number } | [id: string | number ] | string
 
             /**
 * @see \Modules\Budget\Http\Controllers\BudgetRequestController::returned
- * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:1101
+ * @see Modules/Budget/app/Http/Controllers/BudgetRequestController.php:1070
  * @route '/api/v1/budget-request-approvals/{id}/returned'
  */
         returnedForm.post = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

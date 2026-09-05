@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Api\MaintenanceController;
+use App\Http\Middleware\CheckSessionExpiry;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -84,5 +86,24 @@ Route::get('/cek-lifetime', function() {
         'server_time' => now()->toDateTimeString()
     ]);
 });
+
+// ========== SESSION EXPIRY / HEARTBEAT ==========
+// Dipanggil klien (countdown sesi habis) agar server memvalidasi & logout
+// dengan notifikasi redirect ke login.
+Route::post('/session-expire', function (Request $request) {
+    // Kalau benar-benar expired → logout + redirect ke login dengan notifikasi.
+    if (CheckSessionExpiry::isExpired($request)) {
+        return CheckSessionExpiry::expire($request);
+    }
+
+    // Belum expired → tetap di halaman (jaga-jaga bila countdown klien tidak sinkron).
+    return redirect()->back();
+})->name('session.expire');
+
+// Heartbeat: dikirim saat user masih aktif, agar last_activity server
+// tetap segar dan sesi tidak dianggap idle oleh middleware.
+Route::get('/session/heartbeat', function () {
+    return response()->noContent();
+})->name('session.heartbeat');
 
 require __DIR__ . '/settings.php';

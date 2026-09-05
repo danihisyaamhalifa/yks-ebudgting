@@ -20,6 +20,12 @@ export interface NavItem {
     permission?: string | string[]
 }
 
+export interface SessionExpiryInfo {
+    last_activity: number;
+    lifetime_seconds: number;
+    remaining_seconds: number;
+}
+
 export type AppPageProps<
     T extends Record<string, unknown> = Record<string, unknown>,
 > = T & {
@@ -27,6 +33,7 @@ export type AppPageProps<
     quote: { message: string; author: string };
     auth: Auth;
     sidebarOpen: boolean;
+    session_expiry: SessionExpiryInfo | null;
 };
 
 export interface Role {

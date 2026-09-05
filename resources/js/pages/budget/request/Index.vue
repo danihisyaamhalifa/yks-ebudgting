@@ -482,6 +482,7 @@ const fetchApprovalHistory = async (requestId: number) => {
                     (sortBy, sortOrder) =>
                         dataTable.actions.sort(sortBy, sortOrder === 'desc')
                 "
+                :freeze-action-column="true"
             />
         </div>
     </AppLayout>

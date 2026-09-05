@@ -61,6 +61,7 @@ export interface DataTableProps<TData> {
     showRowNumbers?: boolean;
     exportable?: boolean;
     actions?: DataTableActions;
+    freezeActionColumn?: boolean; // New prop for freezing action column
 }
 
 const props = withDefaults(defineProps<DataTableProps<TData>>(), {
@@ -80,6 +81,7 @@ const props = withDefaults(defineProps<DataTableProps<TData>>(), {
     showRowNumbers: true,
     exportable: false,
     actions: undefined,
+    freezeActionColumn: false, // Default false
 });
 
 const emit = defineEmits<{
@@ -123,6 +125,9 @@ const rowNumberColumn = computed((): ColumnDef<TData> | null => {
         enableSorting: false,
         enableColumnFilter: false,
         enableGlobalFilter: false,
+        meta: {
+            sticky: 'left', // Make row number sticky on left
+        },
         cell: ({ row }) => {
             if (props.serverSide) {
                 return startRow.value + row.index;
@@ -136,9 +141,29 @@ const rowNumberColumn = computed((): ColumnDef<TData> | null => {
 // All columns including row numbers
 const allColumns = computed(() => {
     const columns = [...props.columns];
+    
+    // Add row number column if needed
     if (props.showRowNumbers && rowNumberColumn.value) {
         columns.unshift(rowNumberColumn.value);
     }
+    
+    // If freezeActionColumn is true, make the last column sticky on right
+    if (props.freezeActionColumn && columns.length > 0) {
+        const lastColumn = columns[columns.length - 1];
+        if (lastColumn.meta) {
+            lastColumn.meta = {
+                ...lastColumn.meta,
+                sticky: 'right',
+                backgroundColor: 'var(--background)', // Use theme background
+            };
+        } else {
+            lastColumn.meta = {
+                sticky: 'right',
+                backgroundColor: 'var(--background)',
+            };
+        }
+    }
+    
     return columns;
 });
 
@@ -499,6 +524,13 @@ defineExpose({
                         <TableHead
                             v-for="header in headerGroup.headers"
                             :key="header.id"
+                            :class="[
+                                header.column.columnDef.meta?.sticky === 'right'
+                                    ? 'sticky right-0 z-10 bg-background shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)]'
+                                    : header.column.columnDef.meta?.sticky === 'left'
+                                    ? 'sticky left-0 z-10 bg-background shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]'
+                                    : '',
+                            ]"
                         >
                             <div
                                 v-if="!header.isPlaceholder"
@@ -564,6 +596,11 @@ defineExpose({
                                 :key="cell.id"
                                 :class="[
                                     'whitespace-nowrap',
+                                    cell.column.columnDef.meta?.sticky === 'right'
+                                        ? 'sticky right-0 z-10 bg-background shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)]'
+                                        : cell.column.columnDef.meta?.sticky === 'left'
+                                        ? 'sticky left-0 z-10 bg-background shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]'
+                                        : '',
                                     cell.column.columnDef.meta?.align ===
                                     'center'
                                         ? 'text-center'

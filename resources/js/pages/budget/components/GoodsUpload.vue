@@ -1,91 +1,73 @@
 <template>
     <div>
-        <!-- Toolbar -->
-        <div class="mb-3 flex items-center justify-between">
-            <div class="flex items-center gap-2"></div>
-            <div class="flex items-center gap-2">
-                <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    @click="downloadTemplate"
-                    class="gap-1"
-                >
-                    <Download class="h-4 w-4" />
-                    Download Template
-                </Button>
-            </div>
-        </div>
-
-        <!-- Dropzone Upload Area -->
-        <div
-            ref="dropzoneRef"
-            class="relative mb-3 rounded-lg border-2 border-dashed p-6 transition-colors"
-            :class="
-                isDragOver
-                    ? 'border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-950/30'
-                    : uploadedFile
-                      ? 'border-green-400 bg-green-50 dark:border-green-600 dark:bg-green-950/20'
-                      : 'border-muted-foreground/25 hover:border-blue-400 hover:bg-accent/50'
-            "
-            @dragover="handleDragOver"
-            @dragleave="handleDragLeave"
-            @drop="handleDrop"
-        >
-            <input
-                type="file"
-                accept=".csv,.xls,.xlsx"
-                class="absolute inset-0 cursor-pointer opacity-0"
-                @change="handleFileInputChange"
-            />
-
-            <!-- Uploaded File Info -->
-            <div
-                v-if="uploadedFile"
-                class="flex items-center justify-between"
+        <!-- Toolbar: Template + Dropzone Compact (sama dengan panel Dosen) -->
+        <div class="mb-3 flex flex-wrap items-center gap-2">
+            <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                @click="downloadTemplate"
+                class="gap-1"
             >
-                <div class="flex items-center gap-3">
-                    <div
-                        class="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30"
-                    >
-                        <FileSpreadsheet
-                            class="h-5 w-5 text-green-600 dark:text-green-400"
-                        />
-                    </div>
-                    <div>
-                        <p class="text-sm font-medium text-foreground">
-                            {{ uploadedFile.name }}
-                        </p>
-                        <p class="text-xs text-muted-foreground">
-                            {{ formatFileSize(uploadedFile.size) }}
-                        </p>
-                    </div>
-                </div>
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    @click="clearUploadedFile"
-                    class="text-muted-foreground hover:text-destructive"
-                >
-                    <X class="h-4 w-4" />
-                </Button>
-            </div>
+                <Download class="h-3 w-3" />
+                Template Barang
+            </Button>
 
-            <!-- Dropzone Placeholder -->
-            <div v-else class="flex flex-col items-center gap-2 text-center">
+            <!-- Dropzone Upload Area -->
+            <div
+                ref="dropzoneRef"
+                class="relative flex min-w-[280px] flex-1 cursor-pointer rounded-md border border-dashed px-4 py-2 transition-colors"
+                :class="
+                    isDragOver
+                        ? 'border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-950/30'
+                        : uploadedFile
+                          ? 'border-green-400 bg-green-50 dark:border-green-600 dark:bg-green-950/20'
+                          : 'border-muted-foreground/25 hover:border-blue-400 hover:bg-accent/50'
+                "
+                @dragover="handleDragOver"
+                @dragleave="handleDragLeave"
+                @drop="handleDrop"
+            >
+                <input
+                    type="file"
+                    accept=".csv,.xls,.xlsx"
+                    class="absolute inset-0 cursor-pointer opacity-0"
+                    @change="handleFileInputChange"
+                />
+
+                <!-- Uploaded File Info -->
                 <div
-                    class="flex h-12 w-12 items-center justify-center rounded-full bg-muted"
+                    v-if="uploadedFile"
+                    class="flex items-center justify-between gap-2"
                 >
-                    <Upload class="h-6 w-6 text-muted-foreground" />
+                    <div class="flex items-center gap-2 text-xs">
+                        <FileSpreadsheet
+                            class="h-4 w-4 shrink-0 text-green-600 dark:text-green-400"
+                        />
+                        <span class="max-w-[200px] truncate font-medium">
+                            {{ uploadedFile.name }}
+                        </span>
+                        <span class="text-muted-foreground">
+                            {{ formatFileSize(uploadedFile.size) }}
+                        </span>
+                    </div>
+                    <button
+                        type="button"
+                        class="text-muted-foreground hover:text-destructive"
+                        @click.stop="clearUploadedFile"
+                    >
+                        <X class="h-3 w-3" />
+                    </button>
                 </div>
-                <div>
-                    <p class="text-sm font-medium text-foreground">
-                        Drag & drop atau klik untuk upload
-                    </p>
-                    <p class="text-xs text-muted-foreground">
-                        CSV atau Excel (max 5MB)
-                    </p>
+
+                <!-- Dropzone Placeholder -->
+                <div
+                    v-else
+                    class="flex items-center gap-2 text-xs text-muted-foreground"
+                >
+                    <Upload class="h-4 w-4 shrink-0" />
+                    Drag & drop atau klik untuk upload barang (CSV/Excel, max
+                    5MB)
                 </div>
             </div>
         </div>

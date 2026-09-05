@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { useDebounceFn } from '@vueuse/core';
-import axios from 'axios';
 import { computed, onMounted, ref, watch } from 'vue';
+
+import { getCachedList } from '@/lib/selectCache';
 
 import {
     Select,
@@ -103,34 +104,23 @@ const apiParams = computed(() => {
 // METHODS
 // =============================================================================
 
-const fetchActivities = async (): Promise<void> => {
+const fetchActivities = async (force = false): Promise<void> => {
     if (isLoading.value) return;
 
     isLoading.value = true;
     hasError.value = false;
 
     try {
-        const params = { ...apiParams.value };
-        
-        const response = await axios.get(props.apiUrl, {
-            params: Object.keys(params).length > 0 ? params : undefined,
-        });
-        
-        let data = response.data;
-        
-        if (data.data && Array.isArray(data.data)) {
-            activities.value = data.data;
-        } 
-        else if (Array.isArray(data)) {
-            activities.value = data;
-        }
-        else {
-            activities.value = [];
-            console.warn('Unexpected API response structure:', data);
-        }
+        // getCachedList: pakai cache in-memory per (apiUrl + params) selama TTL,
+        // dan dedupe request yang sama sedang berjalan antar instance.
+        // DB hanya di-hit saat cache kosong/kedaluwarsa (default TTL 5 menit).
+        activities.value = await getCachedList<Activity>(
+            props.apiUrl,
+            apiParams.value,
+            { force },
+        );
 
         console.log('Activities loaded:', activities.value.length);
-        
     } catch (error) {
         console.error('Failed to load activities:', error);
         activities.value = [];
@@ -214,7 +204,8 @@ watch(
 onMounted(() => fetchActivities());
 
 defineExpose({
-    refresh: fetchActivities,
+    // refresh() melewati cache (force) supaya data benar-benar baru dari server.
+    refresh: () => fetchActivities(true),
     reset: () => {
         emit('update:modelValue', null);
         emit('select', null);

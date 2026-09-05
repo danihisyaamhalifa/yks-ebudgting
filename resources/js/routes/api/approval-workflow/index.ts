@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../wayfinder'
 /**
 * @see \Modules\User\Http\Controllers\ApprovalWorkflowController::index
- * @see Modules/User/app/Http/Controllers/ApprovalWorkflowController.php:18
+ * @see Modules/User/app/Http/Controllers/ApprovalWorkflowController.php:19
  * @route '/api/v1/approval-workflows'
  */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ index.definition = {
 
 /**
 * @see \Modules\User\Http\Controllers\ApprovalWorkflowController::index
- * @see Modules/User/app/Http/Controllers/ApprovalWorkflowController.php:18
+ * @see Modules/User/app/Http/Controllers/ApprovalWorkflowController.php:19
  * @route '/api/v1/approval-workflows'
  */
 index.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Modules\User\Http\Controllers\ApprovalWorkflowController::index
- * @see Modules/User/app/Http/Controllers/ApprovalWorkflowController.php:18
+ * @see Modules/User/app/Http/Controllers/ApprovalWorkflowController.php:19
  * @route '/api/v1/approval-workflows'
  */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -34,7 +34,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \Modules\User\Http\Controllers\ApprovalWorkflowController::index
- * @see Modules/User/app/Http/Controllers/ApprovalWorkflowController.php:18
+ * @see Modules/User/app/Http/Controllers/ApprovalWorkflowController.php:19
  * @route '/api/v1/approval-workflows'
  */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -44,7 +44,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \Modules\User\Http\Controllers\ApprovalWorkflowController::index
- * @see Modules/User/app/Http/Controllers/ApprovalWorkflowController.php:18
+ * @see Modules/User/app/Http/Controllers/ApprovalWorkflowController.php:19
  * @route '/api/v1/approval-workflows'
  */
     const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -54,7 +54,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \Modules\User\Http\Controllers\ApprovalWorkflowController::index
- * @see Modules/User/app/Http/Controllers/ApprovalWorkflowController.php:18
+ * @see Modules/User/app/Http/Controllers/ApprovalWorkflowController.php:19
  * @route '/api/v1/approval-workflows'
  */
         indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -63,7 +63,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \Modules\User\Http\Controllers\ApprovalWorkflowController::index
- * @see Modules/User/app/Http/Controllers/ApprovalWorkflowController.php:18
+ * @see Modules/User/app/Http/Controllers/ApprovalWorkflowController.php:19
  * @route '/api/v1/approval-workflows'
  */
         indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -79,7 +79,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     index.form = indexForm
 /**
 * @see \Modules\User\Http\Controllers\ApprovalWorkflowController::store
- * @see Modules/User/app/Http/Controllers/ApprovalWorkflowController.php:37
+ * @see Modules/User/app/Http/Controllers/ApprovalWorkflowController.php:55
  * @route '/api/v1/approval-workflows'
  */
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -94,7 +94,7 @@ store.definition = {
 
 /**
 * @see \Modules\User\Http\Controllers\ApprovalWorkflowController::store
- * @see Modules/User/app/Http/Controllers/ApprovalWorkflowController.php:37
+ * @see Modules/User/app/Http/Controllers/ApprovalWorkflowController.php:55
  * @route '/api/v1/approval-workflows'
  */
 store.url = (options?: RouteQueryOptions) => {
@@ -103,7 +103,7 @@ store.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Modules\User\Http\Controllers\ApprovalWorkflowController::store
- * @see Modules/User/app/Http/Controllers/ApprovalWorkflowController.php:37
+ * @see Modules/User/app/Http/Controllers/ApprovalWorkflowController.php:55
  * @route '/api/v1/approval-workflows'
  */
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -113,7 +113,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
     /**
 * @see \Modules\User\Http\Controllers\ApprovalWorkflowController::store
- * @see Modules/User/app/Http/Controllers/ApprovalWorkflowController.php:37
+ * @see Modules/User/app/Http/Controllers/ApprovalWorkflowController.php:55
  * @route '/api/v1/approval-workflows'
  */
     const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -123,7 +123,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
             /**
 * @see \Modules\User\Http\Controllers\ApprovalWorkflowController::store
- * @see Modules/User/app/Http/Controllers/ApprovalWorkflowController.php:37
+ * @see Modules/User/app/Http/Controllers/ApprovalWorkflowController.php:55
  * @route '/api/v1/approval-workflows'
  */
         storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

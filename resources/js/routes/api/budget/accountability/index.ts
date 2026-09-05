@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../wayfinder'
 /**
 * @see \Modules\Disbursement\Http\Controllers\BudgetAccountabilityController::index
- * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:35
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:37
  * @route '/api/v1/budget-accountabilities'
  */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ index.definition = {
 
 /**
 * @see \Modules\Disbursement\Http\Controllers\BudgetAccountabilityController::index
- * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:35
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:37
  * @route '/api/v1/budget-accountabilities'
  */
 index.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Modules\Disbursement\Http\Controllers\BudgetAccountabilityController::index
- * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:35
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:37
  * @route '/api/v1/budget-accountabilities'
  */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -34,7 +34,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \Modules\Disbursement\Http\Controllers\BudgetAccountabilityController::index
- * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:35
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:37
  * @route '/api/v1/budget-accountabilities'
  */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -44,7 +44,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \Modules\Disbursement\Http\Controllers\BudgetAccountabilityController::index
- * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:35
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:37
  * @route '/api/v1/budget-accountabilities'
  */
     const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -54,7 +54,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \Modules\Disbursement\Http\Controllers\BudgetAccountabilityController::index
- * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:35
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:37
  * @route '/api/v1/budget-accountabilities'
  */
         indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -63,7 +63,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \Modules\Disbursement\Http\Controllers\BudgetAccountabilityController::index
- * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:35
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetAccountabilityController.php:37
  * @route '/api/v1/budget-accountabilities'
  */
         indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

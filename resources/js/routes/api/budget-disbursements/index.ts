@@ -338,7 +338,7 @@ update.patch = (args: { budget_disbursement: string | number } | [budget_disburs
     update.form = updateForm
 /**
 * @see \Modules\Disbursement\Http\Controllers\BudgetDisbursementController::destroy
- * @see Modules/Disbursement/app/Http/Controllers/BudgetDisbursementController.php:329
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetDisbursementController.php:331
  * @route '/api/v1/budget-disbursements/{budget_disbursement}'
  */
 export const destroy = (args: { budget_disbursement: string | number } | [budget_disbursement: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -353,7 +353,7 @@ destroy.definition = {
 
 /**
 * @see \Modules\Disbursement\Http\Controllers\BudgetDisbursementController::destroy
- * @see Modules/Disbursement/app/Http/Controllers/BudgetDisbursementController.php:329
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetDisbursementController.php:331
  * @route '/api/v1/budget-disbursements/{budget_disbursement}'
  */
 destroy.url = (args: { budget_disbursement: string | number } | [budget_disbursement: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -381,7 +381,7 @@ destroy.url = (args: { budget_disbursement: string | number } | [budget_disburse
 
 /**
 * @see \Modules\Disbursement\Http\Controllers\BudgetDisbursementController::destroy
- * @see Modules/Disbursement/app/Http/Controllers/BudgetDisbursementController.php:329
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetDisbursementController.php:331
  * @route '/api/v1/budget-disbursements/{budget_disbursement}'
  */
 destroy.delete = (args: { budget_disbursement: string | number } | [budget_disbursement: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -391,7 +391,7 @@ destroy.delete = (args: { budget_disbursement: string | number } | [budget_disbu
 
     /**
 * @see \Modules\Disbursement\Http\Controllers\BudgetDisbursementController::destroy
- * @see Modules/Disbursement/app/Http/Controllers/BudgetDisbursementController.php:329
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetDisbursementController.php:331
  * @route '/api/v1/budget-disbursements/{budget_disbursement}'
  */
     const destroyForm = (args: { budget_disbursement: string | number } | [budget_disbursement: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -406,7 +406,7 @@ destroy.delete = (args: { budget_disbursement: string | number } | [budget_disbu
 
             /**
 * @see \Modules\Disbursement\Http\Controllers\BudgetDisbursementController::destroy
- * @see Modules/Disbursement/app/Http/Controllers/BudgetDisbursementController.php:329
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetDisbursementController.php:331
  * @route '/api/v1/budget-disbursements/{budget_disbursement}'
  */
         destroyForm.delete = (args: { budget_disbursement: string | number } | [budget_disbursement: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -422,7 +422,7 @@ destroy.delete = (args: { budget_disbursement: string | number } | [budget_disbu
     destroy.form = destroyForm
 /**
 * @see \Modules\Disbursement\Http\Controllers\BudgetDisbursementController::approvals
- * @see Modules/Disbursement/app/Http/Controllers/BudgetDisbursementController.php:440
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetDisbursementController.php:442
  * @route '/api/v1/budget-disbursements/{id}/approvals'
  */
 export const approvals = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -437,7 +437,7 @@ approvals.definition = {
 
 /**
 * @see \Modules\Disbursement\Http\Controllers\BudgetDisbursementController::approvals
- * @see Modules/Disbursement/app/Http/Controllers/BudgetDisbursementController.php:440
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetDisbursementController.php:442
  * @route '/api/v1/budget-disbursements/{id}/approvals'
  */
 approvals.url = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -465,7 +465,7 @@ approvals.url = (args: { id: string | number } | [id: string | number ] | string
 
 /**
 * @see \Modules\Disbursement\Http\Controllers\BudgetDisbursementController::approvals
- * @see Modules/Disbursement/app/Http/Controllers/BudgetDisbursementController.php:440
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetDisbursementController.php:442
  * @route '/api/v1/budget-disbursements/{id}/approvals'
  */
 approvals.get = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -474,7 +474,7 @@ approvals.get = (args: { id: string | number } | [id: string | number ] | string
 })
 /**
 * @see \Modules\Disbursement\Http\Controllers\BudgetDisbursementController::approvals
- * @see Modules/Disbursement/app/Http/Controllers/BudgetDisbursementController.php:440
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetDisbursementController.php:442
  * @route '/api/v1/budget-disbursements/{id}/approvals'
  */
 approvals.head = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -484,7 +484,7 @@ approvals.head = (args: { id: string | number } | [id: string | number ] | strin
 
     /**
 * @see \Modules\Disbursement\Http\Controllers\BudgetDisbursementController::approvals
- * @see Modules/Disbursement/app/Http/Controllers/BudgetDisbursementController.php:440
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetDisbursementController.php:442
  * @route '/api/v1/budget-disbursements/{id}/approvals'
  */
     const approvalsForm = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -494,7 +494,7 @@ approvals.head = (args: { id: string | number } | [id: string | number ] | strin
 
             /**
 * @see \Modules\Disbursement\Http\Controllers\BudgetDisbursementController::approvals
- * @see Modules/Disbursement/app/Http/Controllers/BudgetDisbursementController.php:440
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetDisbursementController.php:442
  * @route '/api/v1/budget-disbursements/{id}/approvals'
  */
         approvalsForm.get = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -503,7 +503,7 @@ approvals.head = (args: { id: string | number } | [id: string | number ] | strin
         })
             /**
 * @see \Modules\Disbursement\Http\Controllers\BudgetDisbursementController::approvals
- * @see Modules/Disbursement/app/Http/Controllers/BudgetDisbursementController.php:440
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetDisbursementController.php:442
  * @route '/api/v1/budget-disbursements/{id}/approvals'
  */
         approvalsForm.head = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -519,7 +519,7 @@ approvals.head = (args: { id: string | number } | [id: string | number ] | strin
     approvals.form = approvalsForm
 /**
 * @see \Modules\Disbursement\Http\Controllers\BudgetDisbursementController::approvalHistory
- * @see Modules/Disbursement/app/Http/Controllers/BudgetDisbursementController.php:483
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetDisbursementController.php:485
  * @route '/api/v1/budget-disbursements/{disbursement}/approval-history'
  */
 export const approvalHistory = (args: { disbursement: number | { id: number } } | [disbursement: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -534,7 +534,7 @@ approvalHistory.definition = {
 
 /**
 * @see \Modules\Disbursement\Http\Controllers\BudgetDisbursementController::approvalHistory
- * @see Modules/Disbursement/app/Http/Controllers/BudgetDisbursementController.php:483
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetDisbursementController.php:485
  * @route '/api/v1/budget-disbursements/{disbursement}/approval-history'
  */
 approvalHistory.url = (args: { disbursement: number | { id: number } } | [disbursement: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -567,7 +567,7 @@ approvalHistory.url = (args: { disbursement: number | { id: number } } | [disbur
 
 /**
 * @see \Modules\Disbursement\Http\Controllers\BudgetDisbursementController::approvalHistory
- * @see Modules/Disbursement/app/Http/Controllers/BudgetDisbursementController.php:483
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetDisbursementController.php:485
  * @route '/api/v1/budget-disbursements/{disbursement}/approval-history'
  */
 approvalHistory.get = (args: { disbursement: number | { id: number } } | [disbursement: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -576,7 +576,7 @@ approvalHistory.get = (args: { disbursement: number | { id: number } } | [disbur
 })
 /**
 * @see \Modules\Disbursement\Http\Controllers\BudgetDisbursementController::approvalHistory
- * @see Modules/Disbursement/app/Http/Controllers/BudgetDisbursementController.php:483
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetDisbursementController.php:485
  * @route '/api/v1/budget-disbursements/{disbursement}/approval-history'
  */
 approvalHistory.head = (args: { disbursement: number | { id: number } } | [disbursement: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -586,7 +586,7 @@ approvalHistory.head = (args: { disbursement: number | { id: number } } | [disbu
 
     /**
 * @see \Modules\Disbursement\Http\Controllers\BudgetDisbursementController::approvalHistory
- * @see Modules/Disbursement/app/Http/Controllers/BudgetDisbursementController.php:483
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetDisbursementController.php:485
  * @route '/api/v1/budget-disbursements/{disbursement}/approval-history'
  */
     const approvalHistoryForm = (args: { disbursement: number | { id: number } } | [disbursement: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -596,7 +596,7 @@ approvalHistory.head = (args: { disbursement: number | { id: number } } | [disbu
 
             /**
 * @see \Modules\Disbursement\Http\Controllers\BudgetDisbursementController::approvalHistory
- * @see Modules/Disbursement/app/Http/Controllers/BudgetDisbursementController.php:483
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetDisbursementController.php:485
  * @route '/api/v1/budget-disbursements/{disbursement}/approval-history'
  */
         approvalHistoryForm.get = (args: { disbursement: number | { id: number } } | [disbursement: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -605,7 +605,7 @@ approvalHistory.head = (args: { disbursement: number | { id: number } } | [disbu
         })
             /**
 * @see \Modules\Disbursement\Http\Controllers\BudgetDisbursementController::approvalHistory
- * @see Modules/Disbursement/app/Http/Controllers/BudgetDisbursementController.php:483
+ * @see Modules/Disbursement/app/Http/Controllers/BudgetDisbursementController.php:485
  * @route '/api/v1/budget-disbursements/{disbursement}/approval-history'
  */
         approvalHistoryForm.head = (args: { disbursement: number | { id: number } } | [disbursement: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

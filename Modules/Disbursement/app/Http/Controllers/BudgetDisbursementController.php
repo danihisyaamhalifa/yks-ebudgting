@@ -221,7 +221,8 @@ class BudgetDisbursementController extends BaseApiController
                                     $qItem3->select('id', 'item_code', 'item_name', 'trans_type_id')
                                         ->with(['transType:id,code,name,group_code']);
                                 },
-                                'unitMeasure:id,name'
+                                'unitMeasure:id,name',
+                                'multipliers:id,budget_request_item_id,sequence,label,value'
                             ])->withSum('disbursementItems', 'total_amount');
                         }
                     ]);
@@ -268,6 +269,7 @@ class BudgetDisbursementController extends BaseApiController
                     'volume' => $item->volume,
                     'unit_measure_id' => $item->unit_measure_id,
                     'unit_price' => $item->unit_price,
+                    'multipliers' => $item->multipliers,
                     'total_amount' => $totalAmount,
                     'disbursed_amount' => $disbursedAmount,
                     'remaining_amount' => $remainingAmount,
@@ -525,28 +527,33 @@ class BudgetDisbursementController extends BaseApiController
                 ], 422);
             }
 
-            // Ambil workflow
-            $workflows = ApprovalWorkflow::where('module_name', 'pengajuan_pencairan')
-                ->orderBy('approval_level')
-                ->get();
+            // Ambil workflow berdasarkan header approval workflow milik unit dari request header
+            $approvalHeader = $header->requestHeader?->unit?->approvalWorkflowHeader;
 
-            if ($workflows->isEmpty()) {
-                throw new \Exception('Approval workflow not found');
+            $workflow = ApprovalWorkflow::with('steps')
+                ->where('approval_workflow_header_id', $approvalHeader?->id)
+                ->where('module_name', 'pengajuan_pencairan')
+                ->first();
+
+            if (!$workflow || $workflow->steps->isEmpty()) {
+                throw new \Exception('Alur persetujuan belum diatur untuk unit: ' . ($header->requestHeader?->unit?->unit_name ?? 'unknown'));
             }
 
+            $steps = $workflow->steps->sortBy('approval_level')->values();
+
             // Tentukan level pertama
-            $firstLevel = $workflows->min('approval_level');
+            $firstLevel = $steps->min('approval_level');
 
             // Generate approvals
             $approvals = [];
 
-            foreach ($workflows as $wf) {
-                $isFirst = $wf->approval_level == $firstLevel;
+            foreach ($steps as $step) {
+                $isFirst = $step->approval_level == $firstLevel;
 
                 $approvals[] = [
                     'budget_disbursement_header_id' => $header->id,
-                    'approval_level' => $wf->approval_level,
-                    'role_id' => $wf->role_id,
+                    'approval_level' => $step->approval_level,
+                    'role_id' => $step->role_id,
                     'status' => $isFirst ? 'pending' : 'waiting',
                     'is_current' => $isFirst,
                     'created_at' => now(),

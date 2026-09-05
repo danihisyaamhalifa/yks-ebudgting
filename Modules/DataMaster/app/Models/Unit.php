@@ -2,8 +2,10 @@
 
 namespace Modules\DataMaster\Models;
 
+use App\Models\ApprovalWorkflowHeader;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Unit extends Model
@@ -20,6 +22,7 @@ class Unit extends Model
         'bank_account_number',
         'bank_account_name',
         'is_active',
+        'approval_workflow_id',
     ];
 
     protected $hidden = [
@@ -40,6 +43,26 @@ class Unit extends Model
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    /**
+     * The approval workflow header attached to this unit (1:1).
+     */
+    public function approvalWorkflowHeader(): BelongsTo
+    {
+        return $this->belongsTo(ApprovalWorkflowHeader::class, 'approval_workflow_id');
+    }
+
+    /**
+     * Module workflows accessible via this unit's header.
+     */
+    public function approvalWorkflows(): HasMany
+    {
+        return $this->hasMany(
+            \App\Models\ApprovalWorkflow::class,
+            'approval_workflow_header_id',
+            'approval_workflow_id'
+        );
     }
 
     protected static function boot()

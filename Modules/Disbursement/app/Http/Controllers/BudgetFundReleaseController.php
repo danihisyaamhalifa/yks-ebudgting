@@ -711,28 +711,33 @@ class BudgetFundReleaseController extends BaseApiController
                 ], 422);
             }
 
-            // Ambil workflow
-            $workflows = ApprovalWorkflow::where('module_name', 'realisasi_pencairan')
-                ->orderBy('approval_level')
-                ->get();
+            // Ambil workflow berdasarkan header approval workflow milik unit dari disbursement -> request header
+            $approvalHeader = $header->disbursementHeader?->requestHeader?->unit?->approvalWorkflowHeader;
 
-            if ($workflows->isEmpty()) {
-                throw new \Exception('Approval workflow not found');
+            $workflow = ApprovalWorkflow::with('steps')
+                ->where('approval_workflow_header_id', $approvalHeader?->id)
+                ->where('module_name', 'realisasi_pencairan')
+                ->first();
+
+            if (!$workflow || $workflow->steps->isEmpty()) {
+                throw new \Exception('Alur persetujuan belum diatur untuk unit: ' . ($header->disbursementHeader?->requestHeader?->unit?->unit_name ?? 'unknown'));
             }
 
+            $steps = $workflow->steps->sortBy('approval_level')->values();
+
             // Tentukan level pertama
-            $firstLevel = $workflows->min('approval_level');
+            $firstLevel = $steps->min('approval_level');
 
             // Generate approvals
             $approvals = [];
 
-            foreach ($workflows as $wf) {
-                $isFirst = $wf->approval_level == $firstLevel;
+            foreach ($steps as $step) {
+                $isFirst = $step->approval_level == $firstLevel;
 
                 $approvals[] = [
                     'budget_fund_release_id' => $header->id,
-                    'approval_level' => $wf->approval_level,
-                    'role_id' => $wf->role_id,
+                    'approval_level' => $step->approval_level,
+                    'role_id' => $step->role_id,
                     'status' => $isFirst ? 'pending' : 'waiting',
                     'is_current' => $isFirst,
                     'created_at' => now(),

@@ -113,7 +113,7 @@ const createRole = () => {
           <!-- Permissions Tab -->
           <PermissionsContent ref="permissionsContentRef" v-if="activeTab === 'permissions'" />
 
-          <!-- Approval Workflow Tab -->
+          <!-- Alur Persetujuan Tab -->
           <ApprovalWorkflowContent ref="approvalWorkflowContentRef" v-if="activeTab === 'approval-workflow'" />
         </div>
       </div>

@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\User\Http\Controllers\ApprovalWorkflowController;
+use Modules\User\Http\Controllers\ApprovalWorkflowHeaderController;
 use Modules\User\Http\Controllers\UserController;
 use Modules\User\Http\Controllers\RoleController;
 use Modules\User\Http\Controllers\PermissionController;
@@ -31,6 +32,16 @@ Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
         'show' => 'approval-workflow.show',
         'update' => 'approval-workflow.update',
         'destroy' => 'approval-workflow.destroy',
+    ]);
+
+    Route::get('approval-workflow-headers/select', [ApprovalWorkflowHeaderController::class, 'forSelect'])->name('approval-workflow-header.select');
+
+    Route::apiResource('approval-workflow-headers', ApprovalWorkflowHeaderController::class)->names([
+        'index' => 'approval-workflow-header.index',
+        'store' => 'approval-workflow-header.store',
+        'show' => 'approval-workflow-header.show',
+        'update' => 'approval-workflow-header.update',
+        'destroy' => 'approval-workflow-header.destroy',
     ]);
 
     Route::post('/users/{id}/reset-password', [UserController::class, 'resetPassword'])->name('user.reset-password');

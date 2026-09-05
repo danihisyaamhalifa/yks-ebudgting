@@ -749,12 +749,10 @@ const submitForm = async () => {
         const formDataToSend = new FormData();
         const payload = buildPayload();
 
-        if (
-            formData.value.status &&
-            ['draft', 'returned'].includes(formData.value.status)
-        ) {
-            payload.status = 'submitted';
-        }
+        // Simpan sebagai draft terlebih dahulu; submission ditangani
+        // lewat endpoint approval terpisah (submit/resubmit) seperti modul lain.
+        const currentStatus = formData.value.status || 'draft';
+        payload.status = 'draft';
 
         if (props.id) {
             formDataToSend.append('_method', 'PUT');
@@ -835,9 +833,22 @@ const submitForm = async () => {
             ? `/api/v1/budget-accountabilities/${props.id}`
             : '/api/v1/budget-accountabilities';
 
-        await axios.post(url, formDataToSend, {
+        const response = await axios.post(url, formDataToSend, {
             headers: { 'Content-Type': 'multipart/form-data' },
         });
+
+        let id = props.id;
+        if (!props.id) {
+            id = response.data?.data?.id;
+        }
+
+        // Ajukan untuk approval (generate alur verifikasi)
+        const approvalEndpoint =
+            currentStatus === 'returned'
+                ? `/api/v1/budget-accountability-approvals/${id}/resubmit`
+                : `/api/v1/budget-accountability-approvals/${id}/submit`;
+
+        await axios.post(approvalEndpoint);
 
         toast.success('Pertanggungjawaban anggaran berhasil disimpan');
         router.visit('/pertanggungjawaban');

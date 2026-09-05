@@ -20,7 +20,9 @@ use Modules\Budget\Models\BudgetRequestActivityDocument;
 use Modules\Budget\Models\BudgetRequestApproval;
 use Modules\Budget\Models\BudgetRequestHeader;
 use Modules\Budget\Models\BudgetRequestItem;
+use Modules\Budget\Models\BudgetRequestItemEmployee;
 use Modules\Budget\Models\BudgetRequestItemGood;
+use Modules\Budget\Models\BudgetRequestItemMultiplier;
 
 class BudgetRequestController extends BaseApiController
 {
@@ -49,7 +51,7 @@ class BudgetRequestController extends BaseApiController
                 'currentApproval:id,budget_request_header_id,role_id,status,is_current',
                 'currentApproval.role:id,name'
             ])
-            ->orderBy('request_no');
+            ->orderBy('request_date');
 
 
         $this->applySearch($query, $request);
@@ -91,6 +93,8 @@ class BudgetRequestController extends BaseApiController
             ]);
         }
 
+        $this->mergeUploadedActivityFiles($request);
+
         $this->parseGoodsJson($request);
 
         $formRequest = app(BudgetRequestHeaderRequest::class);
@@ -117,107 +121,93 @@ class BudgetRequestController extends BaseApiController
 
             $requestHeader = BudgetRequestHeader::create($headerData);
 
-            // Simpan Activities, Items, Goods, dan Documents
+            // Simpan Activities (bisa parent/grouping atau leaf)
             foreach ($request->budget_request_activities as $activityData) {
 
-                // Simpan activity menggunakan relationship requestActivities()
-                $activity = $requestHeader->requestActivities()->create([
-                    'activity_id' => $activityData['activity_id'],
-                    'description' => $activityData['description'] ?? null,
-                    'total_amount' => $activityData['total_amount'],
-                    'output_indicator' => $activityData['output_indicator'],
-                    'start_date' => $activityData['start_date'],
-                    'end_date' => $activityData['end_date'],
-                ]);
+                if (!empty($activityData['children'])) {
+                    // ===== PARENT: hanya wadah/grouping, tidak punya item =====
+                    $parent = $requestHeader->requestActivities()->create([
+                        'activity_id' => $activityData['activity_id'],
+                        'description' => $activityData['description'] ?? null,
+                        'total_amount' => 0,
+                        'output_indicator' => $activityData['output_indicator'] ?? null,
+                        'start_date' => $activityData['start_date'] ?? null,
+                        'end_date' => $activityData['end_date'] ?? null,
+                    ]);
 
-                // Simpan Items
-                if (isset($activityData['request_items']) && !empty($activityData['request_items'])) {
-                    foreach ($activityData['request_items'] as $itemData) {
-                        $item = $activity->requestItems()->create([
-                            'activity_item_id' => $itemData['activity_item_id'],
-                            'description' => $itemData['description'],
-                            'unit_measure_id' => $itemData['unit_measure_id'],
-                            'volume' => $itemData['volume'],
-                            'unit_price' => $itemData['unit_price'],
-                            'total_amount' => $itemData['total_amount'],
-                            'notes' => $itemData['notes'] ?? null,
+                    $parentTotal = 0;
+
+                    foreach ($activityData['children'] as $childData) {
+                        $child = $parent->children()->create([
+                            'activity_id' => $childData['activity_id'],
+                            'description' => $childData['description'] ?? null,
+                            'total_amount' => 0,
+                            'output_indicator' => $childData['output_indicator'] ?? null,
+                            'start_date' => $childData['start_date'] ?? null,
+                            'end_date' => $childData['end_date'] ?? null,
                         ]);
 
-                        // ========== SIMPAN GOODS UNTUK ITEM INI ==========
-                        if (isset($itemData['goods']) && !empty($itemData['goods'])) {
-                            foreach ($itemData['goods'] as $goodData) {
-                                // Calculate subtotal if not provided
-                                $subtotal = ($goodData['quantity'] ?? 1) * ($goodData['unit_price'] ?? 0);
-
-                                $item->goods()->create([
-                                    'item_name' => $goodData['item_name'],
-                                    'goods_type' => $goodData['goods_type'] ?? 'bhp',
-                                    'specification' => $goodData['specification'] ?? null,
-                                    'brand' => $goodData['brand'] ?? null,
-                                    'quantity' => $goodData['quantity'] ?? 1,
-                                    'unit_measure' => $goodData['unit_measure'] ?? null,
-                                    'unit_price' => $goodData['unit_price'] ?? 0,
-                                    'subtotal' => $goodData['subtotal'] ?? $subtotal,
-                                    'notes' => $goodData['notes'] ?? null,
-                                ]);
-                            }
-                        }
-                        // ========== END SIMPAN GOODS ==========
+                        $this->syncActivityChildrenData($child, $childData);
+                        $parentTotal += (float) $child->total_amount;
                     }
-                }
 
-                // Simpan Documents
-                if (isset($activityData['documents']) && !empty($activityData['documents'])) {
-                    foreach ($activityData['documents'] as $documentData) {
-                        $filePath = $documentData['file_path'] ?? null;
-                        $fileName = $documentData['file_name'] ?? null;
-                        $fileSize = $documentData['file_size'] ?? null;
-                        $fileType = $documentData['file_type'] ?? null;
+                    $parent->update(['total_amount' => $parentTotal]);
+                } else {
+                    // ===== LEAF: punya item sendiri =====
+                    $activity = $requestHeader->requestActivities()->create([
+                        'activity_id' => $activityData['activity_id'],
+                        'description' => $activityData['description'] ?? null,
+                        'total_amount' => 0,
+                        'output_indicator' => $activityData['output_indicator'] ?? null,
+                        'start_date' => $activityData['start_date'] ?? null,
+                        'end_date' => $activityData['end_date'] ?? null,
+                    ]);
 
-                        // Handle file upload jika ada
-                        if (isset($documentData['file'])) {
-                            $file = $documentData['file'];
-                            $originalName = $file->getClientOriginalName();
-                            $fileName = time() . '_' . Str::slug(pathinfo($originalName, PATHINFO_FILENAME)) . '.' . $file->getClientOriginalExtension();
-
-                            $filePath = $file->storeAs(
-                                'budget-request-activities/' . $activity->id,
-                                $fileName,
-                                'public'
-                            );
-
-                            $fileSize = $file->getSize();
-                            $fileType = $file->getMimeType();
-                        }
-
-                        $activity->documents()->create([
-                            'document_name' => $documentData['document_name'],
-                            'file_name' => $fileName,
-                            'file_path' => $filePath,
-                            'file_size' => $fileSize,
-                            'file_type' => $fileType,
-                            'uploaded_by' => Auth::id(),
-                        ]);
-                    }
+                    $this->syncActivityChildrenData($activity, $activityData);
                 }
             }
+
+            // Hitung ulang total header = jumlah seluruh aktivitas top-level
+            $headerTotal = BudgetRequestActivity::where('budget_request_header_id', $requestHeader->id)
+                ->whereNull('parent_id')
+                ->sum('total_amount');
+
+            $requestHeader->update(['total_amount' => $headerTotal]);
 
             DB::commit();
 
             //Load untuk response
             $requestHeader->load([
                 'requestActivities' => function ($q) {
-                    $q->with([
-                        'activity:id,activity_code,activity_name',
-                        'requestItems' => function ($q2) {
-                            $q2->with([
-                                'activityItem:id,item_code,item_name',
-                                'unitMeasure:id,name',
-                                'goods' // Tambahkan eager loading untuk goods
-                            ]);
-                        },
-                        'documents'
-                    ]);
+                    $q->whereNull('parent_id')
+                        ->with([
+                            'activity:id,activity_code,activity_name',
+                            'children' => function ($qChild) {
+                                $qChild->with([
+                                    'activity:id,activity_code,activity_name',
+                                    'requestItems' => function ($q2) {
+                                        $q2->with([
+                                            'activityItem:id,item_code,item_name',
+                                            'unitMeasure:id,name',
+                                            'goods',
+                                            'employees',
+                                            'multipliers'
+                                        ]);
+                                    },
+                                    'documents'
+                                ]);
+                            },
+                            'requestItems' => function ($q2) {
+                                $q2->with([
+                                    'activityItem:id,item_code,item_name',
+                                    'unitMeasure:id,name',
+                                    'goods',
+                                    'employees',
+                                    'multipliers'
+                                ]);
+                            },
+                            'documents'
+                        ]);
                 },
                 'fiscalYear:id,year',
                 'academicPeriod:id,academic_year,semester',
@@ -257,7 +247,8 @@ class BudgetRequestController extends BaseApiController
             'budgetCategory:id,name',
             'subBudgetCategory:id,name',
             'requestActivities' => function ($q) {
-                $q->select('id', 'activity_id', 'description', 'budget_request_header_id', 'total_amount', 'start_date', 'end_date', 'output_indicator')
+                $q->select('id', 'parent_id', 'activity_id', 'description', 'budget_request_header_id', 'total_amount', 'start_date', 'end_date', 'output_indicator')
+                    ->whereNull('parent_id')
                     ->withSum([
                         'disbursements' => function ($qDisbursement) {
                             $qDisbursement->whereNotIn('status', ['draft', 'rejected']);
@@ -265,6 +256,58 @@ class BudgetRequestController extends BaseApiController
                     ], 'total_amount')
                     ->with([
                         'activity:id,activity_code,activity_name',
+                        'children' => function ($qChild) {
+                            $qChild->select('id', 'parent_id', 'activity_id', 'description', 'budget_request_header_id', 'total_amount', 'start_date', 'end_date', 'output_indicator')
+                                ->withSum([
+                                    'disbursements' => function ($qDisbursement) {
+                                        $qDisbursement->whereNotIn('status', ['draft', 'rejected']);
+                                    }
+                                ], 'total_amount')
+                                ->with([
+                                    'activity:id,activity_code,activity_name',
+                                    'requestItems' => function ($q2) {
+                                        $q2->with([
+                                            'activityItem' => function ($q3) {
+                                                $q3->select('id', 'item_code', 'item_name', 'trans_type_id')
+                                                    ->with(['transType:id,code,name,group_code']);
+                                            },
+                                            'unitMeasure:id,name',
+                                            'goods' => function ($q4) {
+                                                $q4->select(
+                                                    'id',
+                                                    'budget_request_item_id',
+                                                    'item_name',
+                                                    'goods_type',
+                                                    'specification',
+                                                    'brand',
+                                                    'quantity',
+                                                    'unit_measure',
+                                                    'unit_price',
+                                                    'subtotal',
+                                                    'notes'
+                                                );
+                                            },
+                                            'employees' => function ($q4) {
+                                                $q4->select(
+                                                    'id',
+                                                    'budget_request_item_id',
+                                                    'nik',
+                                                    'employee_name',
+                                                    'functional_position',
+                                                    'teaching_hours',
+                                                    'class_count',
+                                                    'rate',
+                                                    'total',
+                                                    'notes'
+                                                );
+                                            },
+                                            'multipliers:id,budget_request_item_id,sequence,label,value'
+                                        ])
+                                            ->withSum('disbursementItems', 'total_amount');
+                                    },
+                                    'documents'
+                                ]);
+                        },
                         'requestItems' => function ($q2) {
                             $q2->with([
                                 'activityItem' => function ($q3) {
@@ -287,8 +330,23 @@ class BudgetRequestController extends BaseApiController
                                         'subtotal',
                                         'notes'
                                     );
-                                }
+                                },
                                 // ========== END GOODS ==========
+                                'employees' => function ($q4) {
+                                    $q4->select(
+                                        'id',
+                                        'budget_request_item_id',
+                                        'nik',
+                                        'employee_name',
+                                        'functional_position',
+                                        'teaching_hours',
+                                        'class_count',
+                                        'rate',
+                                        'total',
+                                        'notes'
+                                    );
+                                },
+                                'multipliers:id,budget_request_item_id,sequence,label,value'
                             ])
                                 ->withSum('disbursementItems', 'total_amount');
                         },
@@ -324,6 +382,8 @@ class BudgetRequestController extends BaseApiController
             ]);
         }
 
+        $this->mergeUploadedActivityFiles($request);
+
         $this->parseGoodsJson($request);
 
         $formRequest = app(BudgetRequestHeaderRequest::class);
@@ -354,8 +414,8 @@ class BudgetRequestController extends BaseApiController
 
             // 2. Update Activities, Items, Goods, and Documents
             if ($request->has('budget_request_activities')) {
-                // Get existing activities
-                $existingActivities = $requestHeader->requestActivities()->get();
+                // Get existing top-level activities (parent/leaf)
+                $existingActivities = $requestHeader->requestActivities()->whereNull('parent_id')->get();
                 $existingActivityIds = $existingActivities->pluck('id')->toArray();
 
                 // Track which activities are updated/created
@@ -364,6 +424,95 @@ class BudgetRequestController extends BaseApiController
                 foreach ($request->budget_request_activities as $activityData) {
                     $activity = null;
 
+                    // ===== PARENT: hanya wadah/grouping, tidak punya item =====
+                    if (!empty($activityData['children'])) {
+                        if (empty($activityData['id'])) {
+                            // CREATE: Parent baru
+                            $activity = $requestHeader->requestActivities()->create([
+                                'activity_id' => $activityData['activity_id'],
+                                'description' => $activityData['description'] ?? null,
+                                'total_amount' => 0,
+                                'output_indicator' => $activityData['output_indicator'] ?? null,
+                                'start_date' => $activityData['start_date'] ?? null,
+                                'end_date' => $activityData['end_date'] ?? null,
+                            ]);
+                        } else {
+                            // UPDATE: Parent existing
+                            $activity = $existingActivities->firstWhere('id', $activityData['id']);
+                            if ($activity) {
+                                $activity->update([
+                                    'activity_id' => $activityData['activity_id'],
+                                    'description' => $activityData['description'] ?? null,
+                                    'total_amount' => 0,
+                                    'output_indicator' => $activityData['output_indicator'] ?? null,
+                                    'start_date' => $activityData['start_date'] ?? null,
+                                    'end_date' => $activityData['end_date'] ?? null,
+                                ]);
+                            }
+                        }
+
+                        if (!$activity) {
+                            continue;
+                        }
+
+                        $processedActivityIds[] = $activity->id;
+
+                        // Sync children
+                        $existingChildren = $activity->children()->get();
+                        $existingChildIds = $existingChildren->pluck('id')->toArray();
+                        $processedChildIds = [];
+                        $parentTotal = 0;
+
+                        foreach ($activityData['children'] as $childData) {
+                            $child = null;
+
+                            if (empty($childData['id'])) {
+                                // CREATE: Child baru
+                                $child = $activity->children()->create([
+                                    'activity_id' => $childData['activity_id'],
+                                    'description' => $childData['description'] ?? null,
+                                    'total_amount' => 0,
+                                    'output_indicator' => $childData['output_indicator'] ?? null,
+                                    'start_date' => $childData['start_date'] ?? null,
+                                    'end_date' => $childData['end_date'] ?? null,
+                                ]);
+                            } else {
+                                // UPDATE: Child existing
+                                $child = $existingChildren->firstWhere('id', $childData['id']);
+                                if ($child) {
+                                    $child->update([
+                                        'activity_id' => $childData['activity_id'],
+                                        'description' => $childData['description'] ?? null,
+                                        'total_amount' => 0,
+                                        'output_indicator' => $childData['output_indicator'] ?? null,
+                                        'start_date' => $childData['start_date'] ?? null,
+                                        'end_date' => $childData['end_date'] ?? null,
+                                    ]);
+                                }
+                            }
+
+                            if (!$child) {
+                                continue;
+                            }
+
+                            $processedChildIds[] = $child->id;
+
+                            $this->syncActivityChildrenData($child, $childData);
+                            $parentTotal += (float) $child->total_amount;
+                        }
+
+                        // Hapus child yang tidak lagi dikirim
+                        $childrenToDelete = array_diff($existingChildIds, $processedChildIds);
+                        if (!empty($childrenToDelete)) {
+                            BudgetRequestActivity::whereIn('id', $childrenToDelete)->delete();
+                        }
+
+                        $activity->update(['total_amount' => $parentTotal]);
+
+                        continue;
+                    }
+
+                    // ===== LEAF: punya item sendiri =====
                     if (empty($activityData['id'])) {
                         // CREATE: Activity baru
                         $activity = $requestHeader->requestActivities()->create([
@@ -396,218 +545,8 @@ class BudgetRequestController extends BaseApiController
                         continue;
                     }
 
-                    // Process Items for this activity
-                    if (isset($activityData['request_items']) && !empty($activityData['request_items'])) {
-                        // Get existing items for this activity
-                        $existingItems = $activity->requestItems()->get();
-                        $existingItemIds = $existingItems->pluck('id')->toArray();
-
-                        // Track which items are updated/created
-                        $processedItemIds = [];
-
-                        foreach ($activityData['request_items'] as $itemData) {
-                            $item = null;
-
-                            if (empty($itemData['id'])) {
-                                // CREATE: Item baru
-                                $item = $activity->requestItems()->create([
-                                    'activity_item_id' => $itemData['activity_item_id'],
-                                    'description' => $itemData['description'],
-                                    'unit_measure_id' => $itemData['unit_measure_id'],
-                                    'volume' => $itemData['volume'],
-                                    'unit_price' => $itemData['unit_price'],
-                                    'total_amount' => $itemData['total_amount'],
-                                    'notes' => $itemData['notes'] ?? null,
-                                ]);
-                                $processedItemIds[] = $item->id;
-                            } else {
-                                // UPDATE: Item existing
-                                $item = $existingItems->firstWhere('id', $itemData['id']);
-                                if ($item) {
-                                    $item->update([
-                                        'activity_item_id' => $itemData['activity_item_id'],
-                                        'description' => $itemData['description'],
-                                        'unit_measure_id' => $itemData['unit_measure_id'],
-                                        'volume' => $itemData['volume'],
-                                        'unit_price' => $itemData['unit_price'],
-                                        'total_amount' => $itemData['total_amount'],
-                                        'notes' => $itemData['notes'] ?? null,
-                                    ]);
-                                    $processedItemIds[] = $item->id;
-                                }
-                            }
-
-                            // Skip if item is null
-                            if (!$item) {
-                                continue;
-                            }
-
-                            // ========== PROCESS GOODS FOR THIS ITEM ==========
-                            if (isset($itemData['goods'])) {
-                                if (!empty($itemData['goods'])) {
-                                    // Get existing goods for this item
-                                    $existingGoods = $item->goods()->get();
-                                    $existingGoodIds = $existingGoods->pluck('id')->toArray();
-
-                                    // Track which goods are updated/created
-                                    $processedGoodIds = [];
-
-                                    foreach ($itemData['goods'] as $goodData) {
-                                        // Calculate subtotal if not provided
-                                        $subtotal = ($goodData['quantity'] ?? 1) * ($goodData['unit_price'] ?? 0);
-
-                                        if (empty($goodData['id'])) {
-                                            // CREATE: Good baru
-                                            $good = $item->goods()->create([
-                                                'item_name' => $goodData['item_name'],
-                                                'goods_type' => $goodData['goods_type'] ?? 'bhp',
-                                                'specification' => $goodData['specification'] ?? null,
-                                                'brand' => $goodData['brand'] ?? null,
-                                                'quantity' => $goodData['quantity'] ?? 1,
-                                                'unit_measure' => $goodData['unit_measure'] ?? null,
-                                                'unit_price' => $goodData['unit_price'] ?? 0,
-                                                'subtotal' => $goodData['subtotal'] ?? $subtotal,
-                                                'notes' => $goodData['notes'] ?? null,
-                                            ]);
-                                            $processedGoodIds[] = $good->id;
-                                        } else {
-                                            // UPDATE: Good existing
-                                            $good = $existingGoods->firstWhere('id', $goodData['id']);
-                                            if ($good) {
-                                                $good->update([
-                                                    'item_name' => $goodData['item_name'],
-                                                    'goods_type' => $goodData['goods_type'] ?? $good->goods_type,
-                                                    'specification' => $goodData['specification'] ?? $good->specification,
-                                                    'brand' => $goodData['brand'] ?? $good->brand,
-                                                    'quantity' => $goodData['quantity'] ?? $good->quantity,
-                                                    'unit_measure' => $goodData['unit_measure'] ?? $good->unit_measure,
-                                                    'unit_price' => $goodData['unit_price'] ?? $good->unit_price,
-                                                    'subtotal' => $goodData['subtotal'] ?? $subtotal,
-                                                    'notes' => $goodData['notes'] ?? $good->notes,
-                                                ]);
-                                                $processedGoodIds[] = $good->id;
-                                            }
-                                        }
-                                    }
-
-                                    // Delete goods that are no longer in the request
-                                    $goodsToDelete = array_diff($existingGoodIds, $processedGoodIds);
-                                    if (!empty($goodsToDelete)) {
-                                        BudgetRequestItemGood::whereIn('id', $goodsToDelete)->delete();
-                                    }
-                                } else {
-                                    // If goods array is empty, delete all existing goods for this item
-                                    $item->goods()->delete();
-                                }
-                            }
-                            // ========== END PROCESS GOODS ==========
-                        }
-
-                        // Delete items that are no longer in the request
-                        $itemsToDelete = array_diff($existingItemIds, $processedItemIds);
-                        if (!empty($itemsToDelete)) {
-                            // Items will cascade delete goods
-                            BudgetRequestItem::whereIn('id', $itemsToDelete)->delete();
-                        }
-                    } else {
-                        // If no items provided, delete all existing items for this activity
-                        $activity->requestItems()->delete();
-                    }
-
-                    // Process Documents for this activity
-                    if (isset($activityData['documents']) && !empty($activityData['documents'])) {
-                        // Get existing documents for this activity
-                        $existingDocuments = $activity->documents()->get();
-                        $existingDocumentIds = $existingDocuments->pluck('id')->toArray();
-
-                        // Track which documents are updated/created
-                        $processedDocumentIds = [];
-
-                        foreach ($activityData['documents'] as $documentData) {
-                            $filePath = $documentData['file_path'] ?? null;
-                            $fileName = $documentData['file_name'] ?? null;
-                            $fileSize = $documentData['file_size'] ?? null;
-                            $fileType = $documentData['file_type'] ?? null;
-
-                            // Handle file upload jika ada
-                            if (isset($documentData['file']) && $documentData['file'] instanceof \Illuminate\Http\UploadedFile) {
-                                $file = $documentData['file'];
-                                $originalName = $file->getClientOriginalName();
-                                $fileName = time() . '_' . Str::slug(pathinfo($originalName, PATHINFO_FILENAME)) . '.' . $file->getClientOriginalExtension();
-
-                                $filePath = $file->storeAs(
-                                    'budget-request-activities/' . $activity->id,
-                                    $fileName,
-                                    'public'
-                                );
-
-                                $fileSize = $file->getSize();
-                                $fileType = $file->getMimeType();
-                            }
-
-                            if (empty($documentData['id'])) {
-                                // CREATE: Document baru
-                                $document = $activity->documents()->create([
-                                    'document_name' => $documentData['document_name'],
-                                    'file_name' => $fileName,
-                                    'file_path' => $filePath,
-                                    'file_size' => $fileSize,
-                                    'file_type' => $fileType,
-                                    'uploaded_by' => Auth::id(),
-                                ]);
-                                $processedDocumentIds[] = $document->id;
-                            } else {
-                                // UPDATE: Document existing
-                                $document = $existingDocuments->firstWhere('id', (int)$documentData['id']);
-                                if ($document) {
-                                    // Update file info if new file uploaded
-                                    if (isset($documentData['file']) && $documentData['file'] instanceof \Illuminate\Http\UploadedFile) {
-                                        // Delete old file
-                                        if ($document->file_path) {
-                                            Storage::disk('public')->delete($document->file_path);
-                                        }
-
-                                        $document->update([
-                                            'file_name' => $fileName,
-                                            'file_path' => $filePath,
-                                            'file_size' => $fileSize,
-                                            'file_type' => $fileType,
-                                        ]);
-                                    }
-
-                                    // Update document name
-                                    $document->update([
-                                        'document_name' => $documentData['document_name'] ?? $document->document_name,
-                                    ]);
-
-                                    $processedDocumentIds[] = $document->id;
-                                }
-                            }
-                        }
-
-                        // Delete documents that are no longer in the request
-                        $documentsToDelete = array_diff($existingDocumentIds, $processedDocumentIds);
-                        if (!empty($documentsToDelete)) {
-                            $documents = BudgetRequestActivityDocument::whereIn('id', $documentsToDelete)->get();
-                            foreach ($documents as $document) {
-                                // Hapus file fisik dari storage
-                                if ($document->file_path) {
-                                    Storage::disk('public')->delete($document->file_path);
-                                }
-                                // Hapus record
-                                $document->delete();
-                            }
-                        }
-                    } else {
-                        // If no documents provided, delete all existing documents
-                        $documents = $activity->documents()->get();
-                        foreach ($documents as $document) {
-                            if ($document->file_path) {
-                                Storage::disk('public')->delete($document->file_path);
-                            }
-                            $document->delete();
-                        }
-                    }
+                    // Sinkron item, pengali, goods, dokumen (leaf & child)
+                    $this->syncActivityChildrenData($activity, $activityData);
                 }
 
                 // Delete activities that are no longer in the request
@@ -644,22 +583,47 @@ class BudgetRequestController extends BaseApiController
                 $requestHeader->requestActivities()->delete();
             }
 
+            // Hitung ulang total header = jumlah seluruh aktivitas top-level
+            $headerTotal = BudgetRequestActivity::where('budget_request_header_id', $requestHeader->id)
+                ->whereNull('parent_id')
+                ->sum('total_amount');
+
+            $requestHeader->update(['total_amount' => $headerTotal]);
+
             DB::commit();
 
             // Load untuk response
             $requestHeader->load([
                 'requestActivities' => function ($q) {
-                    $q->with([
-                        'activity:id,activity_code,activity_name',
-                        'requestItems' => function ($q2) {
-                            $q2->with([
-                                'activityItem:id,item_code,item_name',
-                                'unitMeasure:id,name',
-                                'goods' // Tambahkan eager loading untuk goods
-                            ]);
-                        },
-                        'documents'
-                    ]);
+                    $q->whereNull('parent_id')
+                        ->with([
+                            'activity:id,activity_code,activity_name',
+                            'children' => function ($qChild) {
+                                $qChild->with([
+                                    'activity:id,activity_code,activity_name',
+                                    'requestItems' => function ($q2) {
+                                        $q2->with([
+                                            'activityItem:id,item_code,item_name',
+                                            'unitMeasure:id,name',
+                                            'goods',
+                                            'employees',
+                                            'multipliers'
+                                        ]);
+                                    },
+                                    'documents'
+                                ]);
+                            },
+                            'requestItems' => function ($q2) {
+                                $q2->with([
+                                    'activityItem:id,item_code,item_name',
+                                    'unitMeasure:id,name',
+                                    'goods',
+                                    'employees',
+                                    'multipliers'
+                                ]);
+                            },
+                            'documents'
+                        ]);
                 },
                 'fiscalYear:id,year',
                 'academicPeriod:id,academic_year,semester',
@@ -797,28 +761,33 @@ class BudgetRequestController extends BaseApiController
                 ], 422);
             }
 
-            // Ambil workflow
-            $workflows = ApprovalWorkflow::where('module_name', 'perencanaan_anggaran')
-                ->orderBy('approval_level')
-                ->get();
+            // Ambil workflow berdasarkan header approval workflow milik unit dari header
+            $approvalHeader = $header->unit?->approvalWorkflowHeader;
 
-            if ($workflows->isEmpty()) {
-                throw new \Exception('Approval workflow not found');
+            $workflow = ApprovalWorkflow::with('steps')
+                ->where('approval_workflow_header_id', $approvalHeader?->id)
+                ->where('module_name', 'perencanaan_anggaran')
+                ->first();
+
+            if (!$workflow || $workflow->steps->isEmpty()) {
+                throw new \Exception('Alur persetujuan belum diatur untuk unit: ' . ($header->unit?->unit_name ?? 'unknown'));
             }
 
+            $steps = $workflow->steps->sortBy('approval_level')->values();
+
             // Tentukan level pertama
-            $firstLevel = $workflows->min('approval_level');
+            $firstLevel = $steps->min('approval_level');
 
             // Generate approvals
             $approvals = [];
 
-            foreach ($workflows as $wf) {
-                $isFirst = $wf->approval_level == $firstLevel;
+            foreach ($steps as $step) {
+                $isFirst = $step->approval_level == $firstLevel;
 
                 $approvals[] = [
                     'budget_request_header_id' => $header->id,
-                    'approval_level' => $wf->approval_level,
-                    'role_id' => $wf->role_id,
+                    'approval_level' => $step->approval_level,
+                    'role_id' => $step->role_id,
                     'status' => $isFirst ? 'pending' : 'waiting',
                     'is_current' => $isFirst,
                     'created_at' => now(),
@@ -1210,6 +1179,50 @@ class BudgetRequestController extends BaseApiController
     }
 
     /**
+     * Gabungkan file upload dokumen (activity_files / child_files) ke array
+     * documents pada tiap aktivitas/child, sehingga bisa diproses oleh
+     * syncActivityDocuments().
+     */
+    private function mergeUploadedActivityFiles(Request $request): void
+    {
+        if (!$request->has('budget_request_activities')) {
+            return;
+        }
+
+        $activities = $request->budget_request_activities;
+        $activityFiles = $request->file('activity_files', []);
+        $childFiles = $request->file('child_files', []);
+
+        foreach ($activities as $aIndex => $activityData) {
+            // Dokumen aktivitas (top-level/leaf)
+            if (isset($activityFiles[$aIndex])) {
+                foreach ($activityFiles[$aIndex] as $fIndex => $file) {
+                    if (isset($activityData['documents'][$fIndex])) {
+                        $activities[$aIndex]['documents'][$fIndex]['file'] = $file;
+                    }
+                }
+            }
+
+            // Dokumen child
+            if (isset($childFiles[$aIndex]) && !empty($activityData['children'])) {
+                foreach ($childFiles[$aIndex] as $cIndex => $files) {
+                    if (!isset($activities[$aIndex]['children'][$cIndex])) {
+                        continue;
+                    }
+
+                    foreach ($files as $fIndex => $file) {
+                        if (isset($activities[$aIndex]['children'][$cIndex]['documents'][$fIndex])) {
+                            $activities[$aIndex]['children'][$cIndex]['documents'][$fIndex]['file'] = $file;
+                        }
+                    }
+                }
+            }
+        }
+
+        $request->merge(['budget_request_activities' => $activities]);
+    }
+
+    /**
      * Parse goods_json menjadi array goods
      */
     private function parseGoodsJson(Request $request): void
@@ -1239,5 +1252,349 @@ class BudgetRequestController extends BaseApiController
         }
 
         $request->merge(['budget_request_activities' => $activities]);
+    }
+
+    /**
+     * Hitung total_amount item di sisi server demi integritas data.
+     * - Jika ada goods (tipe VENDOR): total = SUM(quantity * unit_price) goods.
+     * - Jika ada employees (tipe EMPLOYEE): total = SUM(teaching_hours * class_count * rate).
+     * - Mode detailed: total = (perkalian semua value pengali) * unit_price.
+     * - Mode simple: total = volume * unit_price.
+     */
+    private function calculateItemTotal(array $itemData, array $multipliers = []): float
+    {
+        $goods = $itemData['goods'] ?? [];
+
+        if (!empty($goods)) {
+            return (float) collect($goods)->sum(function ($good) {
+                return (float) ($good['quantity'] ?? 1) * (float) ($good['unit_price'] ?? 0);
+            });
+        }
+
+        $employees = $itemData['employees'] ?? [];
+
+        if (!empty($employees)) {
+            return (float) collect($employees)->sum(function ($employee) {
+                return (float) ($employee['teaching_hours'] ?? 0)
+                    * (int) ($employee['class_count'] ?? 1)
+                    * (float) ($employee['rate'] ?? 0);
+            });
+        }
+
+        $mode = $itemData['calculation_mode'] ?? 'simple';
+
+        if ($mode === 'detailed' && !empty($multipliers)) {
+            $product = 1.0;
+            foreach ($multipliers as $multiplier) {
+                $product *= (float) ($multiplier['value'] ?? 1);
+            }
+            return $product * (float) ($itemData['unit_price'] ?? 0);
+        }
+
+        return (float) ($itemData['volume'] ?? 1) * (float) ($itemData['unit_price'] ?? 0);
+    }
+
+    /**
+     * Sinkron item (dengan multipliers & goods) dan dokumen milik sebuah aktivitas,
+     * lalu hitung ulang total aktivitas = jumlah total item.
+     * Dipakai untuk store (semua item baru) maupun update (create/update/delete).
+     */
+    private function syncActivityChildrenData(BudgetRequestActivity $activity, array $activityData): void
+    {
+        // ========== ITEMS ==========
+        if (isset($activityData['request_items']) && !empty($activityData['request_items'])) {
+            $existingItems = $activity->requestItems()->get();
+            $existingItemIds = $existingItems->pluck('id')->toArray();
+            $processedItemIds = [];
+
+            foreach ($activityData['request_items'] as $itemData) {
+                $item = null;
+                $multipliers = $itemData['multipliers'] ?? [];
+                $totalAmount = $this->calculateItemTotal($itemData, $multipliers);
+                $calculationMode = $itemData['calculation_mode'] ?? 'simple';
+
+                if (empty($itemData['id'])) {
+                    // CREATE: Item baru
+                    $item = $activity->requestItems()->create([
+                        'activity_item_id' => $itemData['activity_item_id'],
+                        'description' => $itemData['description'],
+                        'unit_measure_id' => $itemData['unit_measure_id'],
+                        'volume' => $itemData['volume'],
+                        'unit_price' => $itemData['unit_price'],
+                        'total_amount' => $totalAmount,
+                        'calculation_mode' => $calculationMode,
+                        'notes' => $itemData['notes'] ?? null,
+                    ]);
+                    $processedItemIds[] = $item->id;
+                } else {
+                    // UPDATE: Item existing
+                    $item = $existingItems->firstWhere('id', $itemData['id']);
+                    if ($item) {
+                        $item->update([
+                            'activity_item_id' => $itemData['activity_item_id'],
+                            'description' => $itemData['description'],
+                            'unit_measure_id' => $itemData['unit_measure_id'],
+                            'volume' => $itemData['volume'],
+                            'unit_price' => $itemData['unit_price'],
+                            'total_amount' => $totalAmount,
+                            'calculation_mode' => $calculationMode,
+                            'notes' => $itemData['notes'] ?? null,
+                        ]);
+                        $processedItemIds[] = $item->id;
+                    }
+                }
+
+                if (!$item) {
+                    continue;
+                }
+
+                // ========== MULTIPLIERS ==========
+                if ($calculationMode === 'detailed') {
+                    $existingMultipliers = $item->multipliers()->get();
+                    $existingMultiplierIds = $existingMultipliers->pluck('id')->toArray();
+                    $processedMultiplierIds = [];
+
+                    foreach ($multipliers as $mIndex => $multiplierData) {
+                        if (empty($multiplierData['value'])) {
+                            continue;
+                        }
+
+                        if (empty($multiplierData['id'])) {
+                            $multiplier = $item->multipliers()->create([
+                                'sequence' => $multiplierData['sequence'] ?? ($mIndex + 1),
+                                'label' => $multiplierData['label'] ?? 'Volume',
+                                'value' => $multiplierData['value'],
+                            ]);
+                            $processedMultiplierIds[] = $multiplier->id;
+                        } else {
+                            $multiplier = $existingMultipliers->firstWhere('id', $multiplierData['id']);
+                            if ($multiplier) {
+                                $multiplier->update([
+                                    'sequence' => $multiplierData['sequence'] ?? $multiplier->sequence,
+                                    'label' => $multiplierData['label'] ?? $multiplier->label,
+                                    'value' => $multiplierData['value'],
+                                ]);
+                                $processedMultiplierIds[] = $multiplier->id;
+                            }
+                        }
+                    }
+
+                    $multipliersToDelete = array_diff($existingMultiplierIds, $processedMultiplierIds);
+                    if (!empty($multipliersToDelete)) {
+                        BudgetRequestItemMultiplier::whereIn('id', $multipliersToDelete)->delete();
+                    }
+                } else {
+                    // Mode simple: tidak memakai pengali
+                    $item->multipliers()->delete();
+                }
+
+                // ========== GOODS ==========
+                if (isset($itemData['goods'])) {
+                    if (!empty($itemData['goods'])) {
+                        $existingGoods = $item->goods()->get();
+                        $existingGoodIds = $existingGoods->pluck('id')->toArray();
+                        $processedGoodIds = [];
+
+                        foreach ($itemData['goods'] as $goodData) {
+                            $subtotal = ($goodData['quantity'] ?? 1) * ($goodData['unit_price'] ?? 0);
+
+                            if (empty($goodData['id'])) {
+                                $good = $item->goods()->create([
+                                    'item_name' => $goodData['item_name'],
+                                    'goods_type' => $goodData['goods_type'] ?? 'bhp',
+                                    'specification' => $goodData['specification'] ?? null,
+                                    'brand' => $goodData['brand'] ?? null,
+                                    'quantity' => $goodData['quantity'] ?? 1,
+                                    'unit_measure' => $goodData['unit_measure'] ?? null,
+                                    'unit_price' => $goodData['unit_price'] ?? 0,
+                                    'subtotal' => $goodData['subtotal'] ?? $subtotal,
+                                    'notes' => $goodData['notes'] ?? null,
+                                ]);
+                                $processedGoodIds[] = $good->id;
+                            } else {
+                                $good = $existingGoods->firstWhere('id', $goodData['id']);
+                                if ($good) {
+                                    $good->update([
+                                        'item_name' => $goodData['item_name'],
+                                        'goods_type' => $goodData['goods_type'] ?? $good->goods_type,
+                                        'specification' => $goodData['specification'] ?? $good->specification,
+                                        'brand' => $goodData['brand'] ?? $good->brand,
+                                        'quantity' => $goodData['quantity'] ?? $good->quantity,
+                                        'unit_measure' => $goodData['unit_measure'] ?? $good->unit_measure,
+                                        'unit_price' => $goodData['unit_price'] ?? $good->unit_price,
+                                        'subtotal' => $goodData['subtotal'] ?? $subtotal,
+                                        'notes' => $goodData['notes'] ?? $good->notes,
+                                    ]);
+                                    $processedGoodIds[] = $good->id;
+                                }
+                            }
+                        }
+
+                        $goodsToDelete = array_diff($existingGoodIds, $processedGoodIds);
+                        if (!empty($goodsToDelete)) {
+                            BudgetRequestItemGood::whereIn('id', $goodsToDelete)->delete();
+                        }
+                    } else {
+                        $item->goods()->delete();
+                    }
+                }
+
+                // ========== EMPLOYEES (tipe EMPLOYEE: honorarium dosen) ==========
+                if (isset($itemData['employees'])) {
+                    if (!empty($itemData['employees'])) {
+                        $existingEmployees = $item->employees()->get();
+                        $existingEmployeeIds = $existingEmployees->pluck('id')->toArray();
+                        $processedEmployeeIds = [];
+
+                        foreach ($itemData['employees'] as $employeeData) {
+                            $employeeTotal = (float) ($employeeData['teaching_hours'] ?? 0)
+                                * (int) ($employeeData['class_count'] ?? 1)
+                                * (float) ($employeeData['rate'] ?? 0);
+
+                            if (empty($employeeData['id'])) {
+                                $employee = $item->employees()->create([
+                                    'nik' => $employeeData['nik'],
+                                    'employee_name' => $employeeData['employee_name'],
+                                    'functional_position' => $employeeData['functional_position'] ?? null,
+                                    'teaching_hours' => $employeeData['teaching_hours'] ?? 0,
+                                    'class_count' => $employeeData['class_count'] ?? 1,
+                                    'rate' => $employeeData['rate'] ?? 0,
+                                    'total' => $employeeData['total'] ?? $employeeTotal,
+                                    'notes' => $employeeData['notes'] ?? null,
+                                ]);
+                                $processedEmployeeIds[] = $employee->id;
+                            } else {
+                                $employee = $existingEmployees->firstWhere('id', $employeeData['id']);
+                                if ($employee) {
+                                    $employee->update([
+                                        'nik' => $employeeData['nik'],
+                                        'employee_name' => $employeeData['employee_name'],
+                                        'functional_position' => $employeeData['functional_position'] ?? $employee->functional_position,
+                                        'teaching_hours' => $employeeData['teaching_hours'] ?? $employee->teaching_hours,
+                                        'class_count' => $employeeData['class_count'] ?? $employee->class_count,
+                                        'rate' => $employeeData['rate'] ?? $employee->rate,
+                                        'total' => $employeeData['total'] ?? $employeeTotal,
+                                        'notes' => $employeeData['notes'] ?? $employee->notes,
+                                    ]);
+                                    $processedEmployeeIds[] = $employee->id;
+                                }
+                            }
+                        }
+
+                        $employeesToDelete = array_diff($existingEmployeeIds, $processedEmployeeIds);
+                        if (!empty($employeesToDelete)) {
+                            BudgetRequestItemEmployee::whereIn('id', $employeesToDelete)->delete();
+                        }
+                    } else {
+                        $item->employees()->delete();
+                    }
+                }
+            }
+
+            // Delete items that are no longer in the request
+            $itemsToDelete = array_diff($existingItemIds, $processedItemIds);
+            if (!empty($itemsToDelete)) {
+                BudgetRequestItem::whereIn('id', $itemsToDelete)->delete();
+            }
+        } else {
+            $activity->requestItems()->delete();
+        }
+
+        // ========== DOCUMENTS ==========
+        $this->syncActivityDocuments($activity, $activityData);
+
+        // ========== TOTAL AKTIVITAS = jumlah item ==========
+        $activity->update(['total_amount' => (float) $activity->requestItems()->sum('total_amount')]);
+    }
+
+    /**
+     * Sinkron dokumen milik sebuah aktivitas (create/update/delete).
+     */
+    private function syncActivityDocuments(BudgetRequestActivity $activity, array $activityData): void
+    {
+        if (isset($activityData['documents']) && !empty($activityData['documents'])) {
+            $existingDocuments = $activity->documents()->get();
+            $existingDocumentIds = $existingDocuments->pluck('id')->toArray();
+            $processedDocumentIds = [];
+
+            foreach ($activityData['documents'] as $documentData) {
+                $filePath = $documentData['file_path'] ?? null;
+                $fileName = $documentData['file_name'] ?? null;
+                $fileSize = $documentData['file_size'] ?? null;
+                $fileType = $documentData['file_type'] ?? null;
+
+                if (isset($documentData['file']) && $documentData['file'] instanceof \Illuminate\Http\UploadedFile) {
+                    $file = $documentData['file'];
+                    $originalName = $file->getClientOriginalName();
+                    $fileName = time() . '_' . Str::slug(pathinfo($originalName, PATHINFO_FILENAME)) . '.' . $file->getClientOriginalExtension();
+
+                    $filePath = $file->storeAs(
+                        'budget-request-activities/' . $activity->id,
+                        $fileName,
+                        'public'
+                    );
+
+                    $fileSize = $file->getSize();
+                    $fileType = $file->getMimeType();
+                }
+
+                if (empty($documentData['id'])) {
+                    // CREATE: Document baru
+                    $document = $activity->documents()->create([
+                        'document_name' => $documentData['document_name'],
+                        'file_name' => $fileName,
+                        'file_path' => $filePath,
+                        'file_size' => $fileSize,
+                        'file_type' => $fileType,
+                        'uploaded_by' => Auth::id(),
+                    ]);
+                    $processedDocumentIds[] = $document->id;
+                } else {
+                    // UPDATE: Document existing
+                    $document = $existingDocuments->firstWhere('id', (int) $documentData['id']);
+                    if ($document) {
+                        if (isset($documentData['file']) && $documentData['file'] instanceof \Illuminate\Http\UploadedFile) {
+                            if ($document->file_path) {
+                                Storage::disk('public')->delete($document->file_path);
+                            }
+
+                            $document->update([
+                                'file_name' => $fileName,
+                                'file_path' => $filePath,
+                                'file_size' => $fileSize,
+                                'file_type' => $fileType,
+                            ]);
+                        }
+
+                        $document->update([
+                            'document_name' => $documentData['document_name'] ?? $document->document_name,
+                        ]);
+
+                        $processedDocumentIds[] = $document->id;
+                    }
+                }
+            }
+
+            // Delete documents that are no longer in the request
+            $documentsToDelete = array_diff($existingDocumentIds, $processedDocumentIds);
+            if (!empty($documentsToDelete)) {
+                $documents = BudgetRequestActivityDocument::whereIn('id', $documentsToDelete)->get();
+                foreach ($documents as $document) {
+                    if ($document->file_path) {
+                        Storage::disk('public')->delete($document->file_path);
+                    }
+                    $document->delete();
+                }
+            }
+        } else {
+            // Tidak ada dokumen dikirim: hapus semua dokumen existing
+            $documents = $activity->documents()->get();
+            foreach ($documents as $document) {
+                if ($document->file_path) {
+                    Storage::disk('public')->delete($document->file_path);
+                }
+                $document->delete();
+            }
+        }
     }
 }

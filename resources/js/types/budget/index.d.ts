@@ -26,6 +26,13 @@ export interface BudgetRequestHeader {
     creator?: any;
 }
 
+export interface BudgetRequestItemMultiplier {
+    id?: number;
+    sequence: number;
+    label: string;
+    value: number;
+}
+
 export interface BudgetRequestItem {
     id: number;
     budget_request_activity_id: number;
@@ -35,9 +42,12 @@ export interface BudgetRequestItem {
     volume: number;
     unit_price: number;
     total_amount: number;
+    calculation_mode?: 'simple' | 'detailed';
     disbursed_amount?: number;
     remaining_amount?: number;
-    
+
+    multipliers?: BudgetRequestItemMultiplier[];
+
     activity_item: {
         item_name: string;
 

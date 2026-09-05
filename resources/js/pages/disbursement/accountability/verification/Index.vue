@@ -1,34 +1,27 @@
 <script setup lang="ts">
 import DataTable from '@/components/compound/data-table/DataTable.vue';
-import { FormDialog } from '@/components/compound/form-dialog';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import {
     createActionColumn,
     createColumn,
     useDataTable,
 } from '@/composables/useDataTable';
-import { useUser } from '@/composables/useUser';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { BreadcrumbItem } from '@/types';
 import { BudgetAccountability } from '@/types/disburse';
 import { Head, router } from '@inertiajs/vue3';
 import type { ColumnDef } from '@tanstack/vue-table';
-import axios from 'axios';
 import {
     ArrowRightLeftIcon,
     BadgeCheckIcon,
     CalendarIcon,
     CheckCircle2Icon,
     ClockIcon,
-    EditIcon,
     EyeIcon,
     FileTextIcon,
-    PlusIcon,
     RotateCcwIcon,
-    TrashIcon,
 } from 'lucide-vue-next';
-import { computed, h, ref } from 'vue';
+import { h } from 'vue';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -40,21 +33,6 @@ const breadcrumbs: BreadcrumbItem[] = [
         href: '',
     },
 ];
-
-const user = useUser();
-const canCreate = computed(
-    () => user.hasPermission('create pertanggungjawaban_anggaran') ?? false,
-);
-const canEdit = computed(
-    () => user.hasPermission('edit pertanggungjawaban_anggaran') ?? false,
-);
-const canDelete = computed(
-    () => user.hasPermission('delete pertanggungjawaban_anggaran') ?? false,
-);
-
-const loading = ref(false);
-const showDeleteDialog = ref(false);
-const accountabilityToDelete = ref<BudgetAccountability | null>(null);
 
 // Status configuration
 const statusConfig: Record<string, { bg: string; icon: any; text: string }> = {
@@ -340,19 +318,20 @@ const columns: ColumnDef<BudgetAccountability>[] = [
         {
             icon: EyeIcon,
             variant: 'outline',
-            // show: (row: BudgetAccountability) =>
-            //     ['approved', 'rejected', 'returned'].includes(row.status),
+            show: (row: BudgetAccountability) =>
+                ['approved', 'rejected', 'returned'].includes(row.status),
             onClick: (row: BudgetAccountability) =>
                 verifyBudgetAccountability(row),
         },
         {
             icon: BadgeCheckIcon,
             variant: 'default',
-            // show: (row: BudgetAccountability) => row.status === 'submitted',
-            // permissions: ['approve perencanaan_anggaran'],
-            onClick: (row: BudgetAccountability) => verifyBudgetAccountability(row),
+            permissions: ['approve pertanggungjawaban_anggaran'],
+            show: (row: BudgetAccountability) =>
+                ['submitted', 'verified'].includes(row.status),
+            onClick: (row: BudgetAccountability) =>
+                verifyBudgetAccountability(row),
         },
-        
     ]),
 ];
 
@@ -367,36 +346,14 @@ const dataTable = useDataTable({
     exportable: true,
     selectable: true,
     refreshable: false,
+    initialFilters: {
+        status: ['submitted', 'verified', 'approved', 'rejected', 'returned'],
+    },
 });
 
 // Action handlers
 const verifyBudgetAccountability = (accountability: BudgetAccountability) => {
     router.visit(`/verifikasi-pertanggungjawaban/${accountability.id}/verify`);
-};
-
-const goToCreatePage = () => {
-    router.visit('/pertanggungjawaban/input');
-};
-
-// Handle delete data
-const handleDeleteAccountability = async () => {
-    if (!accountabilityToDelete.value) return;
-
-    loading.value = true;
-    try {
-        await axios.delete(
-            `/api/v1/budget-accountabilities/${accountabilityToDelete.value.id}`,
-        );
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-
-        showDeleteDialog.value = false;
-        accountabilityToDelete.value = null;
-        dataTable.actions.refresh();
-    } catch (error) {
-        console.error('Error deleting accountability:', error);
-    } finally {
-        loading.value = false;
-    }
 };
 
 </script>
@@ -418,16 +375,6 @@ const handleDeleteAccountability = async () => {
                         Daftar verifikasi & persetujuan pertanggungjawaban anggaran
                     </p>
                 </div>
-                <div class="flex items-center space-x-2">
-                    <Button
-                        v-if="canCreate"
-                        @click="goToCreatePage"
-                        class="shadow-sm transition-shadow hover:shadow-md"
-                    >
-                        <PlusIcon class="mr-2 h-4 w-4" />
-                        Tambah Pertanggungjawaban
-                    </Button>
-                </div>
             </div>
 
             <!-- DataTable -->
@@ -440,7 +387,7 @@ const handleDeleteAccountability = async () => {
                 search-placeholder="Cari No. Pertanggungjawaban, No. Pencairan, No. Pengajuan..."
                 show-pagination
                 show-page-info
-                empty-message="Data pertanggungjawaban anggaran tidak ditemukan"
+                empty-message="Tidak ada pertanggungjawaban yang memerlukan verifikasi atau persetujuan"
                 server-side
                 :total-rows="dataTable.state.value.pagination.total"
                 :current-page="dataTable.state.value.pagination.page"
@@ -457,27 +404,4 @@ const handleDeleteAccountability = async () => {
             />
         </div>
     </AppLayout>
-
-    <!-- Delete Dialog -->
-    <FormDialog
-        v-model:open="showDeleteDialog"
-        title="Hapus Pertanggungjawaban"
-        description="Proses ini tidak dapat dibatalkan. Data pertanggungjawaban akan dihapus secara permanen beserta item-itemnya."
-        :loading="loading"
-        submit-text="Hapus Pertanggungjawaban"
-        submit-variant="destructive"
-        cancel-text="Batal"
-        size="sm"
-        @submit="handleDeleteAccountability"
-    >
-        <div class="rounded-md border border-red-200 bg-red-50 p-4">
-            <p class="text-sm text-red-800">
-                Apakah Anda yakin akan menghapus pertanggungjawaban:
-                <strong>{{ accountabilityToDelete?.accountability_no }}</strong>
-            </p>
-            <p class="mt-2 text-xs text-red-600">
-                *Data yang telah dihapus tidak dapat dikembalikan
-            </p>
-        </div>
-    </FormDialog>
 </template>

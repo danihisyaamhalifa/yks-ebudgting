@@ -38,6 +38,7 @@ import {
     Target,
     TrendingUp,
     Upload,
+    Users,
     X,
     XCircle,
 } from 'lucide-vue-next';
@@ -75,6 +76,25 @@ interface BudgetRequestItemGood {
     notes: string;
 }
 
+interface BudgetRequestItemMultiplier {
+    id?: number;
+    sequence: number;
+    label: string;
+    value: number;
+}
+
+interface BudgetRequestItemEmployee {
+    id?: number;
+    nik: string;
+    employee_name: string;
+    functional_position: string;
+    teaching_hours: number;
+    class_count: number;
+    rate: number;
+    total: number;
+    notes: string;
+}
+
 interface BudgetRequestItem {
     id: number;
     description: string;
@@ -85,7 +105,10 @@ interface BudgetRequestItem {
     total_price: number;
     trans_type_group?: string;
     goods?: BudgetRequestItemGood[];
+    employees?: BudgetRequestItemEmployee[];
+    multipliers?: BudgetRequestItemMultiplier[];
     showGoods?: boolean;
+    showEmployees?: boolean;
     coa?: {
         account_code: string;
         account_name: string;
@@ -107,6 +130,7 @@ interface BudgetActivity {
     files: UploadedFile[];
     output_indicator: string;
     isExpanded?: boolean;
+    level?: number;
 }
 
 interface BudgetRequestHeader {
@@ -347,12 +371,30 @@ const hasVendorType = (item: BudgetRequestItem): boolean => {
     return item.trans_type_group?.toUpperCase() === 'VENDOR';
 };
 
+const hasEmployeeType = (item: BudgetRequestItem): boolean => {
+    return item.trans_type_group?.toUpperCase() === 'EMPLOYEE';
+};
+
 const hasGoods = (item: BudgetRequestItem): boolean => {
     return !!(item.goods && item.goods.length > 0);
 };
 
+const hasEmployees = (item: BudgetRequestItem): boolean => {
+    return !!(item.employees && item.employees.length > 0);
+};
+
 const toggleGoodsDetail = (item: BudgetRequestItem) => {
     item.showGoods = !item.showGoods;
+};
+
+const toggleEmployeesDetail = (item: BudgetRequestItem) => {
+    item.showEmployees = !item.showEmployees;
+};
+
+const getEmployeeTotalAmount = (
+    employees: BudgetRequestItemEmployee[],
+) => {
+    return employees.reduce((sum, emp) => sum + (emp.total || 0), 0);
 };
 
 const getGoodsTypeBadgeClass = (goodsType: string) => {
@@ -524,69 +566,98 @@ const mapApprovalStatusToVerificationStatus = (
 };
 
 // ========== TRANSFORM ==========
+const mapActivityVerify = (activity: any, level = 0): BudgetActivity => ({
+    id: activity.id,
+    activity_id: activity.activity_id,
+    description:
+        activity.activity?.activity_name ||
+        activity.activity_name ||
+        activity.description ||
+        '',
+    start_date: activity.start_date
+        ? String(activity.start_date).split('T')[0]
+        : '',
+    end_date: activity.end_date ? String(activity.end_date).split('T')[0] : '',
+    total_amount: activity.total_amount || 0,
+    showItems: false,
+    isExpanded: false,
+    level,
+    request_items:
+        activity.request_items?.map((detail: any) => ({
+            id: detail.id,
+            description: detail.description || '',
+            coa_id: detail.coa_id || '',
+            quantity: detail.volume || 0,
+            unit: detail.unit_measure_id || 0,
+            unit_price: detail.unit_price || 0,
+            total_price: detail.total_amount || 0,
+            trans_type_group:
+                detail.activity_item?.trans_type?.group_code || '',
+            multipliers: (detail.multipliers || []).map((m: any) => ({
+                id: m.id,
+                sequence: m.sequence || 1,
+                label: m.label || 'Volume',
+                value: parseFloat(m.value) || 0,
+            })),
+            showGoods: false,
+            showEmployees: false,
+            goods:
+                detail.goods?.map((good: any) => ({
+                    id: good.id,
+                    item_name: good.item_name,
+                    goods_type: good.goods_type || 'bhp',
+                    specification: good.specification || '',
+                    brand: good.brand || '',
+                    quantity: good.quantity || 1,
+                    unit_measure: good.unit_measure || '',
+                    unit_price: parseFloat(good.unit_price) || 0,
+                    subtotal: parseFloat(good.subtotal) || 0,
+                    notes: good.notes || '',
+                })) || [],
+            employees:
+                detail.employees?.map((emp: any) => ({
+                    id: emp.id,
+                    nik: emp.nik || '',
+                    employee_name: emp.employee_name || '',
+                    functional_position: emp.functional_position || '',
+                    teaching_hours: parseFloat(emp.teaching_hours) || 0,
+                    class_count: parseInt(emp.class_count, 10) || 0,
+                    rate: parseFloat(emp.rate) || 0,
+                    total: parseFloat(emp.total) || 0,
+                    notes: emp.notes || '',
+                })) || [],
+            coa: detail.coa
+                ? {
+                      account_code: detail.coa.account_code || '',
+                      account_name: detail.coa.account_name || '',
+                  }
+                : undefined,
+            unit_measure: detail.unit_measure
+                ? {
+                      name: detail.unit_measure.name || '',
+                  }
+                : undefined,
+        })) || [],
+    files:
+        activity.documents?.map((att: any) => ({
+            id: att.id,
+            name: att.document_name,
+            file: att.file_path,
+            size: att.file_size,
+            type: att.file_type,
+            url: att.file_path,
+            isExisting: true,
+            status: 'success',
+        })) || [],
+    output_indicator: activity.output_indicator || '',
+});
+
 const transformActivities = (activitiesData: any[]): BudgetActivity[] => {
-    return activitiesData.map((activity: any) => {
-        return {
-            id: activity.id,
-            activity_id: activity.activity_id,
-            description: activity?.activity_name || activity.description || '',
-            start_date: activity.start_date
-                ? activity.start_date.split('T')[0]
-                : '',
-            end_date: activity.end_date ? activity.end_date.split('T')[0] : '',
-            total_amount: activity.total_amount || 0,
-            showItems: false,
-            isExpanded: false,
-            request_items:
-                activity.request_items?.map((detail: any) => ({
-                    id: detail.id,
-                    description: detail.description || '',
-                    coa_id: detail.coa_id || '',
-                    quantity: detail.volume || 0,
-                    unit: detail.unit_measure_id || 0,
-                    unit_price: detail.unit_price || 0,
-                    total_price: detail.total_amount || 0,
-                    trans_type_group:
-                        detail.activity_item?.trans_type?.group_code || '',
-                    showGoods: false,
-                    goods:
-                        detail.goods?.map((good: any) => ({
-                            id: good.id,
-                            item_name: good.item_name,
-                            goods_type: good.goods_type || 'bhp',
-                            specification: good.specification || '',
-                            brand: good.brand || '',
-                            quantity: good.quantity || 1,
-                            unit_measure: good.unit_measure || '',
-                            unit_price: parseFloat(good.unit_price) || 0,
-                            subtotal: parseFloat(good.subtotal) || 0,
-                            notes: good.notes || '',
-                        })) || [],
-                    coa: detail.coa
-                        ? {
-                              account_code: detail.coa.account_code || '',
-                              account_name: detail.coa.account_name || '',
-                          }
-                        : undefined,
-                    unit_measure: detail.unit_measure
-                        ? {
-                              name: detail.unit_measure.name || '',
-                          }
-                        : undefined,
-                })) || [],
-            files:
-                activity.documents?.map((att: any) => ({
-                    id: att.id,
-                    name: att.document_name,
-                    file: att.file_path,
-                    size: att.file_size,
-                    type: att.file_type,
-                    url: att.file_path,
-                    isExisting: true,
-                    status: 'success',
-                })) || [],
-            output_indicator: activity.output_indicator || '',
-        };
+    return (activitiesData || []).flatMap((activity: any) => {
+        const children = (activity.children || []).map((child: any) =>
+            mapActivityVerify(child, 1),
+        );
+        return [mapActivityVerify(activity, 0), ...children];
     });
 };
 
@@ -626,6 +697,26 @@ const initializeVerificationData = () => {
 // ========== FORMATTING ==========
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID').format(amount || 0);
+};
+
+// Formula pengali volume untuk tampilan (14 Hari × 50 Mahasiswa)
+const formatFormula = (item: BudgetRequestItem): string => {
+    if (hasVendorType(item) || hasEmployeeType(item)) {
+        return '-';
+    }
+
+    const multipliers = item.multipliers || [];
+    if (multipliers.length === 0) {
+        return item.quantity ? `${Number(item.quantity).toFixed(0)}` : '-';
+    }
+
+    return multipliers
+        .filter((m) => (Number(m.value) || 0) > 0)
+        .map(
+            (m) =>
+                `${Number(m.value).toLocaleString('id-ID')}${m.label ? ' ' + m.label : ''}`,
+        )
+        .join(' × ');
 };
 
 const formatDate = (dateString: string) => {
@@ -1284,6 +1375,11 @@ const downloadFile = (file: any) => {
                                 v-for="(activity, index) in budgetActivities"
                                 :key="activity.id"
                                 class="overflow-hidden rounded-lg border"
+                                :class="
+                                    activity.level === 1
+                                        ? 'ml-6 border-l-4 border-l-blue-300 dark:border-l-blue-700'
+                                        : ''
+                                "
                             >
                                 <!-- Activity Header with Toggle Button -->
                                 <div
@@ -1301,8 +1397,17 @@ const downloadFile = (file: any) => {
                                             </div>
                                             <div>
                                                 <h4
-                                                    class="font-semibold text-foreground"
+                                                    class="flex items-center gap-2 font-semibold text-foreground"
                                                 >
+                                                    <Badge
+                                                        v-if="
+                                                            activity.level === 1
+                                                        "
+                                                        variant="secondary"
+                                                        class="text-xs"
+                                                    >
+                                                        Sub-kegiatan
+                                                    </Badge>
                                                     {{ activity.description }}
                                                 </h4>
                                                 <div
@@ -1388,8 +1493,9 @@ const downloadFile = (file: any) => {
                                                         >Item
                                                         Anggaran</TableHead
                                                     >
-                                                    <TableHead class="w-28"
-                                                        >Volume</TableHead
+                                                    <TableHead class="w-40"
+                                                        >Rincian
+                                                        Volume</TableHead
                                                     >
                                                     <TableHead class="w-28"
                                                         >Satuan</TableHead
@@ -1420,8 +1526,14 @@ const downloadFile = (file: any) => {
                                                     <TableRow
                                                         :class="{
                                                             'bg-primary/5':
-                                                                item.showGoods &&
-                                                                hasGoods(item),
+                                                                (item.showGoods &&
+                                                                    hasGoods(
+                                                                        item,
+                                                                    )) ||
+                                                                (item.showEmployees &&
+                                                                    hasEmployees(
+                                                                        item,
+                                                                    )),
                                                         }"
                                                     >
                                                         <TableCell
@@ -1459,15 +1571,56 @@ const downloadFile = (file: any) => {
                                                                     }}
                                                                     barang
                                                                 </Badge>
+                                                                <Badge
+                                                                    v-if="
+                                                                        hasEmployeeType(
+                                                                            item,
+                                                                        ) &&
+                                                                        hasEmployees(
+                                                                            item,
+                                                                        )
+                                                                    "
+                                                                    variant="secondary"
+                                                                    class="ml-1 text-xs"
+                                                                >
+                                                                    <Users
+                                                                        class="mr-1 h-3 w-3"
+                                                                    />
+                                                                    {{
+                                                                        item
+                                                                            .employees
+                                                                            ?.length
+                                                                    }}
+                                                                    dosen
+                                                                </Badge>
                                                             </div>
                                                         </TableCell>
                                                         <TableCell>{{
-                                                            item.quantity
+                                                            formatFormula(item)
                                                         }}</TableCell>
-                                                        <TableCell>{{
-                                                            item.unit_measure
-                                                                ?.name
-                                                        }}</TableCell>
+                                                        <TableCell>
+                                                            <span
+                                                                v-if="
+                                                                    hasVendorType(
+                                                                        item,
+                                                                    ) ||
+                                                                    hasEmployeeType(
+                                                                        item,
+                                                                    )
+                                                                "
+                                                                class="text-muted-foreground"
+                                                                >-</span
+                                                            >
+                                                            <template
+                                                                v-else
+                                                            >
+                                                                {{
+                                                                    item
+                                                                        .unit_measure
+                                                                        ?.name
+                                                                }}
+                                                            </template>
+                                                        </TableCell>
                                                         <TableCell align="right">
                                                             Rp
                                                             {{
@@ -1514,6 +1667,41 @@ const downloadFile = (file: any) => {
                                                                 <ChevronDown
                                                                     v-if="
                                                                         !item.showGoods
+                                                                    "
+                                                                    class="h-4 w-4 text-muted-foreground"
+                                                                />
+                                                                <ChevronUp
+                                                                    v-else
+                                                                    class="h-4 w-4 text-muted-foreground"
+                                                                />
+                                                            </Button>
+                                                            <Button
+                                                                v-if="
+                                                                    hasEmployeeType(
+                                                                        item,
+                                                                    ) &&
+                                                                    hasEmployees(
+                                                                        item,
+                                                                    )
+                                                                "
+                                                                type="button"
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                @click="
+                                                                    toggleEmployeesDetail(
+                                                                        item,
+                                                                    )
+                                                                "
+                                                                class="p-1"
+                                                                :title="
+                                                                    item.showEmployees
+                                                                        ? 'Sembunyikan detail dosen'
+                                                                        : 'Lihat detail dosen'
+                                                                "
+                                                            >
+                                                                <ChevronDown
+                                                                    v-if="
+                                                                        !item.showEmployees
                                                                     "
                                                                     class="h-4 w-4 text-muted-foreground"
                                                                 />
@@ -1739,6 +1927,194 @@ const downloadFile = (file: any) => {
                                                         </TableCell>
                                                     </TableRow>
                                                     <!-- ========== END GOODS DETAIL ROW ========== -->
+
+                                                    <!-- ========== EMPLOYEE DETAIL ROW ========== -->
+                                                    <TableRow
+                                                        v-if="
+                                                            item.showEmployees &&
+                                                            hasEmployees(item)
+                                                        "
+                                                        class="bg-primary/10"
+                                                    >
+                                                        <TableCell
+                                                            colspan="7"
+                                                            class="p-0"
+                                                        >
+                                                            <div
+                                                                class="border-t-2 border-primary/20 p-3"
+                                                            >
+                                                                <div
+                                                                    class="mb-2 flex items-center gap-2"
+                                                                >
+                                                                    <Users
+                                                                        class="h-4 w-4 text-primary"
+                                                                    />
+                                                                    <span
+                                                                        class="text-sm font-semibold text-primary"
+                                                                    >
+                                                                        Detail
+                                                                        Dosen
+                                                                        (EMPLOYEE)
+                                                                    </span>
+                                                                </div>
+
+                                                                <div
+                                                                    class="overflow-x-auto rounded-md border bg-card"
+                                                                >
+                                                                    <Table>
+                                                                        <TableHeader>
+                                                                            <TableRow
+                                                                                class="bg-muted/30"
+                                                                            >
+                                                                                <TableHead
+                                                                                    class="w-10 text-xs"
+                                                                                    >No</TableHead
+                                                                                >
+                                                                                <TableHead
+                                                                                    class="w-28 text-xs"
+                                                                                    >NIK</TableHead
+                                                                                >
+                                                                                <TableHead
+                                                                                    class="text-xs"
+                                                                                    >Nama
+                                                                                    Dosen</TableHead
+                                                                                >
+                                                                                <TableHead
+                                                                                    class="text-xs"
+                                                                                    >Jabatan
+                                                                                    Fungsional</TableHead
+                                                                                >
+                                                                                <TableHead
+                                                                                    class="w-24 text-xs text-right"
+                                                                                    >Jam
+                                                                                    Mengajar</TableHead
+                                                                                >
+                                                                                <TableHead
+                                                                                    class="w-16 text-xs text-center"
+                                                                                    >Kelas</TableHead
+                                                                                >
+                                                                                <TableHead
+                                                                                    class="w-28 text-xs text-right"
+                                                                                    >Tarif</TableHead
+                                                                                >
+                                                                                <TableHead
+                                                                                    class="w-28 text-xs text-right"
+                                                                                    >Total</TableHead
+                                                                                >
+                                                                                <TableHead
+                                                                                    class="text-xs"
+                                                                                    >Keterangan</TableHead
+                                                                                >
+                                                                            </TableRow>
+                                                                        </TableHeader>
+                                                                        <TableBody>
+                                                                            <TableRow
+                                                                                v-for="(
+                                                                                    emp, eIndex
+                                                                                ) in item.employees"
+                                                                                :key="
+                                                                                    emp.id
+                                                                                "
+                                                                                class="text-sm"
+                                                                            >
+                                                                                <TableCell
+                                                                                    class="text-xs font-medium"
+                                                                                >
+                                                                                    {{
+                                                                                        eIndex +
+                                                                                        1
+                                                                                    }}
+                                                                                </TableCell>
+                                                                                <TableCell
+                                                                                    class="text-xs"
+                                                                                    >{{
+                                                                                        emp.nik
+                                                                                    }}</TableCell
+                                                                                >
+                                                                                <TableCell
+                                                                                    class="text-xs font-medium"
+                                                                                    >{{
+                                                                                        emp.employee_name
+                                                                                    }}</TableCell
+                                                                                >
+                                                                                <TableCell
+                                                                                    class="text-xs"
+                                                                                    >{{
+                                                                                        emp.functional_position ||
+                                                                                        '-'
+                                                                                    }}</TableCell
+                                                                                >
+                                                                                <TableCell
+                                                                                    class="text-xs text-right"
+                                                                                    >{{
+                                                                                        emp.teaching_hours
+                                                                                    }}</TableCell
+                                                                                >
+                                                                                <TableCell
+                                                                                    class="text-xs text-center"
+                                                                                    >{{
+                                                                                        emp.class_count
+                                                                                    }}</TableCell
+                                                                                >
+                                                                                <TableCell
+                                                                                    class="text-xs text-right"
+                                                                                    >Rp
+                                                                                    {{
+                                                                                        formatCurrency(
+                                                                                            emp.rate,
+                                                                                        )
+                                                                                    }}</TableCell
+                                                                                >
+                                                                                <TableCell
+                                                                                    class="text-xs text-right font-medium"
+                                                                                    >Rp
+                                                                                    {{
+                                                                                        formatCurrency(
+                                                                                            emp.total,
+                                                                                        )
+                                                                                    }}</TableCell
+                                                                                >
+                                                                                <TableCell
+                                                                                    class="text-xs"
+                                                                                    >{{
+                                                                                        emp.notes || '-'
+                                                                                    }}</TableCell
+                                                                                >
+                                                                            </TableRow>
+                                                                        </TableBody>
+                                                                    </Table>
+                                                                </div>
+
+                                                                <!-- Employee Summary -->
+                                                                <div
+                                                                    class="mt-2 flex justify-end"
+                                                                >
+                                                                    <div
+                                                                        class="rounded border bg-muted/30 px-3 py-1.5 text-xs"
+                                                                    >
+                                                                        <span
+                                                                            class="text-muted-foreground"
+                                                                            >Total
+                                                                            Dosen:</span
+                                                                        >
+                                                                        <span
+                                                                            class="ml-2 font-bold text-primary"
+                                                                        >
+                                                                            Rp
+                                                                            {{
+                                                                                formatCurrency(
+                                                                                    getEmployeeTotalAmount(
+                                                                                        item.employees!,
+                                                                                    ),
+                                                                                )
+                                                                            }}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                    <!-- ========== END EMPLOYEE DETAIL ROW ========== -->
                                                 </template>
                                                 <TableRow class="bg-muted/30">
                                                     <TableCell
@@ -1748,8 +2124,8 @@ const downloadFile = (file: any) => {
                                                         Kegiatan:</TableCell
                                                     >
                                                     <TableCell
-                                                        colspan="2"
-                                                        class="font-bold text-primary"
+                                                        colspan="1"
+                                                        class="text-right font-bold text-primary"
                                                         >Rp
                                                         {{
                                                             formatCurrency(

@@ -98,7 +98,7 @@ const parameterColumns: ColumnDef<Parameter>[] = [
                     variant: isActive ? 'secondary' : 'destructive',
                     class: isActive ? 'bg-blue-500 text-white gap-1' : 'gap-1',
                 },
-                isActive 
+                isActive
                     ? [h(BadgeCheckIcon, { class: 'w-4 h-4' }), 'Aktif']
                     : [h(XCircleIcon, { class: 'w-4 h-4' }), 'Non Aktif'],
             );
@@ -166,7 +166,7 @@ const parameterValueColumns: ColumnDef<ParameterValue>[] = [
                     variant: isActive ? 'secondary' : 'destructive',
                     class: isActive ? 'bg-blue-500 text-white gap-1' : 'gap-1',
                 },
-                isActive 
+                isActive
                     ? [h(BadgeCheckIcon, { class: 'w-4 h-4' }), 'Aktif']
                     : [h(XCircleIcon, { class: 'w-4 h-4' }), 'Non Aktif'],
             );
@@ -273,14 +273,14 @@ const showValueValidation = ref(false);
 
 // Reset validations
 const resetParameterValidation = () => {
-    Object.keys(parameterErrors).forEach(key => {
+    Object.keys(parameterErrors).forEach((key) => {
         parameterErrors[key as keyof typeof parameterErrors] = [];
     });
     showParameterValidation.value = false;
 };
 
 const resetValueValidation = () => {
-    Object.keys(valueErrors).forEach(key => {
+    Object.keys(valueErrors).forEach((key) => {
         valueErrors[key as keyof typeof valueErrors] = [];
     });
     showValueValidation.value = false;
@@ -308,7 +308,9 @@ const validateParameter = (): boolean => {
 
     showParameterValidation.value = true;
 
-    const hasErrors = Object.values(parameterErrors).some(arr => arr.length > 0);
+    const hasErrors = Object.values(parameterErrors).some(
+        (arr) => arr.length > 0,
+    );
     return !hasErrors;
 };
 
@@ -338,19 +340,19 @@ const validateValue = (): boolean => {
 
     showValueValidation.value = true;
 
-    const hasErrors = Object.values(valueErrors).some(arr => arr.length > 0);
+    const hasErrors = Object.values(valueErrors).some((arr) => arr.length > 0);
     return !hasErrors;
 };
 
 // Computed for form validity
 const isParameterFormValid = computed(() => {
     if (!showParameterValidation.value) return true;
-    return Object.values(parameterErrors).every(arr => arr.length === 0);
+    return Object.values(parameterErrors).every((arr) => arr.length === 0);
 });
 
 const isValueFormValid = computed(() => {
     if (!showValueValidation.value) return true;
-    return Object.values(valueErrors).every(arr => arr.length === 0);
+    return Object.values(valueErrors).every((arr) => arr.length === 0);
 });
 
 // Reset forms
@@ -404,7 +406,9 @@ const deleteParameter = (param: Parameter) => {
 
 const handleCreateParameter = async () => {
     if (!validateParameter()) {
-        toast.warning('Mohon lengkapi semua field yang wajib diisi dengan benar.');
+        toast.warning(
+            'Mohon lengkapi semua field yang wajib diisi dengan benar.',
+        );
         return;
     }
 
@@ -424,13 +428,18 @@ const handleCreateParameter = async () => {
 
 const handleUpdateParameter = async () => {
     if (!validateParameter()) {
-        toast.warning('Mohon lengkapi semua field yang wajib diisi dengan benar.');
+        toast.warning(
+            'Mohon lengkapi semua field yang wajib diisi dengan benar.',
+        );
         return;
     }
 
     loading.value = true;
     try {
-        await axios.put(`/api/v1/parameters/${parameterForm.id}`, parameterForm);
+        await axios.put(
+            `/api/v1/parameters/${parameterForm.id}`,
+            parameterForm,
+        );
         toast.success('Parameter berhasil diperbarui!');
         showEditParameterDialog.value = false;
         resetParameterForm();
@@ -465,14 +474,14 @@ const openParameterValues = (param: Parameter) => {
     valueForm.group_code = param.group_code;
     activeTab.value = 'values';
     isFilterActive.value = true;
-    
+
     refreshParameterValues();
 };
 
 const refreshParameterValues = () => {
     if (selectedParameter.value) {
         parameterValueDataTable.actions.filter({
-            parameter_id: selectedParameter.value.id
+            parameter_id: selectedParameter.value.id,
         });
     }
 };
@@ -516,7 +525,9 @@ const deleteParameterValue = (value: ParameterValue) => {
 
 const handleCreateValue = async () => {
     if (!validateValue()) {
-        toast.warning('Mohon lengkapi semua field yang wajib diisi dengan benar.');
+        toast.warning(
+            'Mohon lengkapi semua field yang wajib diisi dengan benar.',
+        );
         return;
     }
 
@@ -536,7 +547,9 @@ const handleCreateValue = async () => {
 
 const handleUpdateValue = async () => {
     if (!validateValue()) {
-        toast.warning('Mohon lengkapi semua field yang wajib diisi dengan benar.');
+        toast.warning(
+            'Mohon lengkapi semua field yang wajib diisi dengan benar.',
+        );
         return;
     }
 
@@ -559,7 +572,9 @@ const handleDeleteValue = async () => {
 
     loading.value = true;
     try {
-        await axios.delete(`/api/v1/parameter-values/${valueToDelete.value.id}`);
+        await axios.delete(
+            `/api/v1/parameter-values/${valueToDelete.value.id}`,
+        );
         toast.success('Nilai parameter berhasil dihapus!');
         showDeleteValueDialog.value = false;
         valueToDelete.value = null;
@@ -574,9 +589,13 @@ const handleDeleteValue = async () => {
 // Handle API errors
 const handleApiError = (error: unknown, defaultMessage: string) => {
     if (axios.isAxiosError(error)) {
-        const axiosError = error as AxiosError<{ message: string; errors?: Record<string, string[]> }>;
+        const axiosError = error as AxiosError<{
+            message: string;
+            errors?: Record<string, string[]>;
+        }>;
         const statusCode = axiosError.response?.status;
-        const errorMessage = axiosError.response?.data?.message || axiosError.message;
+        const errorMessage =
+            axiosError.response?.data?.message || axiosError.message;
 
         switch (statusCode) {
             case 422:
@@ -584,15 +603,18 @@ const handleApiError = (error: unknown, defaultMessage: string) => {
                     const errors = axiosError.response.data.errors;
                     // Handle errors for both forms
                     if (activeTab.value === 'parameters') {
-                        Object.keys(errors).forEach(key => {
+                        Object.keys(errors).forEach((key) => {
                             if (key in parameterErrors) {
-                                parameterErrors[key as keyof typeof parameterErrors] = errors[key];
+                                parameterErrors[
+                                    key as keyof typeof parameterErrors
+                                ] = errors[key];
                             }
                         });
                     } else {
-                        Object.keys(errors).forEach(key => {
+                        Object.keys(errors).forEach((key) => {
                             if (key in valueErrors) {
-                                valueErrors[key as keyof typeof valueErrors] = errors[key];
+                                valueErrors[key as keyof typeof valueErrors] =
+                                    errors[key];
                             }
                         });
                     }
@@ -619,23 +641,33 @@ const handleApiError = (error: unknown, defaultMessage: string) => {
 // Watch for form changes to clear errors
 watch(
     () => parameterForm.group_code,
-    () => { if (showParameterValidation.value) parameterErrors.group_code = []; }
+    () => {
+        if (showParameterValidation.value) parameterErrors.group_code = [];
+    },
 );
 watch(
     () => parameterForm.group_name,
-    () => { if (showParameterValidation.value) parameterErrors.group_name = []; }
+    () => {
+        if (showParameterValidation.value) parameterErrors.group_name = [];
+    },
 );
 watch(
     () => valueForm.code,
-    () => { if (showValueValidation.value) valueErrors.code = []; }
+    () => {
+        if (showValueValidation.value) valueErrors.code = [];
+    },
 );
 watch(
     () => valueForm.name,
-    () => { if (showValueValidation.value) valueErrors.name = []; }
+    () => {
+        if (showValueValidation.value) valueErrors.name = [];
+    },
 );
 watch(
     () => valueForm.sort_order,
-    () => { if (showValueValidation.value) valueErrors.sort_order = []; }
+    () => {
+        if (showValueValidation.value) valueErrors.sort_order = [];
+    },
 );
 
 // Watch active tab to maintain state
@@ -654,21 +686,22 @@ watch(activeTab, (newTab, oldTab) => {
         selectedParameter.value = null;
         resetValueForm();
     }
-    
+
     // Jika pindah ke values dan ada selected parameter
     if (newTab === 'values' && selectedParameter.value) {
         refreshParameterValues();
         isFilterActive.value = true;
     }
 });
-
 </script>
 
 <template>
     <Head title="Parameter" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
+        <div
+            class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4"
+        >
             <!-- Header -->
             <div class="flex items-center justify-between">
                 <div>
@@ -679,7 +712,7 @@ watch(activeTab, (newTab, oldTab) => {
                 </div>
                 <div class="flex items-center space-x-2">
                     <Button v-if="!isValuesTabActive" @click="createParameter">
-                        <PlusIcon class="w-4 h-4 mr-2" />
+                        <PlusIcon class="mr-2 h-4 w-4" />
                         Tambah Parameter
                     </Button>
                 </div>
@@ -691,11 +724,18 @@ watch(activeTab, (newTab, oldTab) => {
                     <TabsTrigger value="parameters">Parameter</TabsTrigger>
                     <TabsTrigger value="values" :disabled="!selectedParameter">
                         Nilai Parameter
-                        <span v-if="selectedParameter" class="ml-2 text-xs text-muted-foreground">
+                        <span
+                            v-if="selectedParameter"
+                            class="ml-2 text-xs text-muted-foreground"
+                        >
                             ({{ selectedParameter.group_code }})
                         </span>
-                        <Badge v-if="isFilterActive" variant="secondary" class="ml-2 text-xs">
-                            <FilterIcon class="w-3 h-3 mr-1" />
+                        <Badge
+                            v-if="isFilterActive"
+                            variant="secondary"
+                            class="ml-2 text-xs"
+                        >
+                            <FilterIcon class="mr-1 h-3 w-3" />
                             Filter Aktif
                         </Badge>
                     </TabsTrigger>
@@ -714,17 +754,30 @@ watch(activeTab, (newTab, oldTab) => {
                         show-page-info
                         empty-message="Data parameter tidak ditemukan"
                         server-side
-                        :total-rows="parameterDataTable.state.value.pagination.total"
-                        :current-page="parameterDataTable.state.value.pagination.page"
-                        :total-pages="parameterDataTable.state.value.pagination.totalPages"
-                        :current-page-size="parameterDataTable.state.value.pagination.perPage"
+                        :total-rows="
+                            parameterDataTable.state.value.pagination.total
+                        "
+                        :current-page="
+                            parameterDataTable.state.value.pagination.page
+                        "
+                        :total-pages="
+                            parameterDataTable.state.value.pagination.totalPages
+                        "
+                        :current-page-size="
+                            parameterDataTable.state.value.pagination.perPage
+                        "
                         :exportable="true"
                         @search="parameterDataTable.actions.search"
                         @page-change="parameterDataTable.actions.goToPage"
-                        @page-size-change="parameterDataTable.actions.changePageSize"
+                        @page-size-change="
+                            parameterDataTable.actions.changePageSize
+                        "
                         @sort-change="
                             (sortBy, sortOrder) =>
-                                parameterDataTable.actions.sort(sortBy, sortOrder === 'desc')
+                                parameterDataTable.actions.sort(
+                                    sortBy,
+                                    sortOrder === 'desc',
+                                )
                         "
                     />
                 </TabsContent>
@@ -735,29 +788,31 @@ watch(activeTab, (newTab, oldTab) => {
                         <div class="flex items-center justify-between">
                             <div>
                                 <h3 class="text-lg font-semibold">
-                                    Nilai Parameter: {{ selectedParameter.group_name }}
+                                    Nilai Parameter:
+                                    {{ selectedParameter.group_name }}
                                 </h3>
                                 <p class="text-sm text-muted-foreground">
                                     Kode: {{ selectedParameter.group_code }}
                                 </p>
                                 <div class="mt-2 flex items-center gap-2">
                                     <Badge variant="outline" class="text-xs">
-                                        Filter: parameter_id = {{ selectedParameter.id }}
+                                        Filter: parameter_id =
+                                        {{ selectedParameter.id }}
                                     </Badge>
-                                    <Button 
-                                        variant="ghost" 
-                                        size="sm" 
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
                                         class="h-6 px-2 text-xs"
                                         @click="clearParameterFilter"
                                     >
-                                        <XCircleIcon class="w-3 h-3 mr-1" />
+                                        <XCircleIcon class="mr-1 h-3 w-3" />
                                         Clear Filter
                                     </Button>
                                 </div>
                             </div>
                             <!-- Tombol Tambah Nilai Parameter -->
                             <Button @click="createParameterValue">
-                                <PlusIcon class="w-4 h-4 mr-2" />
+                                <PlusIcon class="mr-2 h-4 w-4" />
                                 Tambah Nilai
                             </Button>
                         </div>
@@ -774,17 +829,32 @@ watch(activeTab, (newTab, oldTab) => {
                         show-page-info
                         empty-message="Data nilai parameter tidak ditemukan"
                         server-side
-                        :total-rows="parameterValueDataTable.state.value.pagination.total"
-                        :current-page="parameterValueDataTable.state.value.pagination.page"
-                        :total-pages="parameterValueDataTable.state.value.pagination.totalPages"
-                        :current-page-size="parameterValueDataTable.state.value.pagination.perPage"
+                        :total-rows="
+                            parameterValueDataTable.state.value.pagination.total
+                        "
+                        :current-page="
+                            parameterValueDataTable.state.value.pagination.page
+                        "
+                        :total-pages="
+                            parameterValueDataTable.state.value.pagination
+                                .totalPages
+                        "
+                        :current-page-size="
+                            parameterValueDataTable.state.value.pagination
+                                .perPage
+                        "
                         :exportable="true"
                         @search="parameterValueDataTable.actions.search"
                         @page-change="parameterValueDataTable.actions.goToPage"
-                        @page-size-change="parameterValueDataTable.actions.changePageSize"
+                        @page-size-change="
+                            parameterValueDataTable.actions.changePageSize
+                        "
                         @sort-change="
                             (sortBy, sortOrder) =>
-                                parameterValueDataTable.actions.sort(sortBy, sortOrder === 'desc')
+                                parameterValueDataTable.actions.sort(
+                                    sortBy,
+                                    sortOrder === 'desc',
+                                )
                         "
                     />
                 </TabsContent>
@@ -802,13 +872,22 @@ watch(activeTab, (newTab, oldTab) => {
                 />
 
                 <FormDialog.Content spacing="md">
-                    <div v-if="parameterErrors.general.length > 0" 
-                         class="bg-amber-50 border border-amber-200 rounded-md p-3">
+                    <div
+                        v-if="parameterErrors.general.length > 0"
+                        class="rounded-md border border-amber-200 bg-amber-50 p-3"
+                    >
                         <div class="flex items-start gap-2">
-                            <AlertCircleIcon class="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                            <AlertCircleIcon
+                                class="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-500"
+                            />
                             <div>
-                                <p v-for="(error, index) in parameterErrors.general" 
-                                   :key="index" class="text-sm text-amber-700">
+                                <p
+                                    v-for="(
+                                        error, index
+                                    ) in parameterErrors.general"
+                                    :key="index"
+                                    class="text-sm text-amber-700"
+                                >
                                     {{ error }}
                                 </p>
                             </div>
@@ -819,34 +898,54 @@ watch(activeTab, (newTab, oldTab) => {
                         <div class="grid grid-cols-2 gap-4">
                             <div class="space-y-2">
                                 <Label for="create-group_code">
-                                    Kode Grup <span class="text-red-500">*</span>
+                                    Kode Grup
+                                    <span class="text-red-500">*</span>
                                 </Label>
                                 <Input
                                     id="create-group_code"
                                     v-model="parameterForm.group_code"
                                     placeholder="Isikan kode grup"
                                     :disabled="loading"
-                                    :class="{ 'border-red-500 focus:ring-red-500': parameterErrors.group_code.length > 0 }"
+                                    :class="{
+                                        'border-red-500 focus:ring-red-500':
+                                            parameterErrors.group_code.length >
+                                            0,
+                                    }"
                                 />
-                                <p v-for="(error, index) in parameterErrors.group_code" 
-                                   :key="index" class="text-xs text-red-500">
+                                <p
+                                    v-for="(
+                                        error, index
+                                    ) in parameterErrors.group_code"
+                                    :key="index"
+                                    class="text-xs text-red-500"
+                                >
                                     {{ error }}
                                 </p>
                             </div>
 
                             <div class="space-y-2">
                                 <Label for="create-group_name">
-                                    Nama Grup <span class="text-red-500">*</span>
+                                    Nama Grup
+                                    <span class="text-red-500">*</span>
                                 </Label>
                                 <Input
                                     id="create-group_name"
                                     v-model="parameterForm.group_name"
                                     placeholder="Isikan nama grup"
                                     :disabled="loading"
-                                    :class="{ 'border-red-500 focus:ring-red-500': parameterErrors.group_name.length > 0 }"
+                                    :class="{
+                                        'border-red-500 focus:ring-red-500':
+                                            parameterErrors.group_name.length >
+                                            0,
+                                    }"
                                 />
-                                <p v-for="(error, index) in parameterErrors.group_name" 
-                                   :key="index" class="text-xs text-red-500">
+                                <p
+                                    v-for="(
+                                        error, index
+                                    ) in parameterErrors.group_name"
+                                    :key="index"
+                                    class="text-xs text-red-500"
+                                >
                                     {{ error }}
                                 </p>
                             </div>
@@ -865,26 +964,41 @@ watch(activeTab, (newTab, oldTab) => {
                         <div class="space-y-2">
                             <div class="flex items-center justify-between">
                                 <div>
-                                    <Label for="create-is-active" class="text-sm font-medium">
+                                    <Label
+                                        for="create-is-active"
+                                        class="text-sm font-medium"
+                                    >
                                         Status Aktif
                                     </Label>
                                     <p class="text-xs text-muted-foreground">
                                         Aktifkan parameter ini
                                     </p>
                                 </div>
-                                <Switch 
-                                    id="create-is-active" 
+                                <Switch
+                                    id="create-is-active"
                                     v-model="parameterForm.is_active"
                                     :disabled="loading"
                                 />
                             </div>
-                            <div v-if="parameterForm.is_active" class="flex items-center gap-2 text-xs text-blue-600">
-                                <BadgeCheckIcon class="w-4 h-4" />
-                                <span>Parameter ini akan ditandai sebagai aktif</span>
+                            <div
+                                v-if="parameterForm.is_active"
+                                class="flex items-center gap-2 text-xs text-blue-600"
+                            >
+                                <BadgeCheckIcon class="h-4 w-4" />
+                                <span
+                                    >Parameter ini akan ditandai sebagai
+                                    aktif</span
+                                >
                             </div>
-                            <div v-else class="flex items-center gap-2 text-xs text-muted-foreground">
-                                <XCircleIcon class="w-4 h-4" />
-                                <span>Parameter ini akan ditandai sebagai non-aktif</span>
+                            <div
+                                v-else
+                                class="flex items-center gap-2 text-xs text-muted-foreground"
+                            >
+                                <XCircleIcon class="h-4 w-4" />
+                                <span
+                                    >Parameter ini akan ditandai sebagai
+                                    non-aktif</span
+                                >
                             </div>
                         </div>
                     </div>
@@ -896,7 +1010,12 @@ watch(activeTab, (newTab, oldTab) => {
                     :loading="loading"
                     :valid="isParameterFormValid"
                     @submit="handleCreateParameter"
-                    @cancel="() => { showCreateParameterDialog = false; resetParameterForm(); }"
+                    @cancel="
+                        () => {
+                            showCreateParameterDialog = false;
+                            resetParameterForm();
+                        }
+                    "
                 />
             </FormDialog>
 
@@ -912,13 +1031,22 @@ watch(activeTab, (newTab, oldTab) => {
                 />
 
                 <FormDialog.Content spacing="md">
-                    <div v-if="parameterErrors.general.length > 0" 
-                         class="bg-amber-50 border border-amber-200 rounded-md p-3">
+                    <div
+                        v-if="parameterErrors.general.length > 0"
+                        class="rounded-md border border-amber-200 bg-amber-50 p-3"
+                    >
                         <div class="flex items-start gap-2">
-                            <AlertCircleIcon class="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                            <AlertCircleIcon
+                                class="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-500"
+                            />
                             <div>
-                                <p v-for="(error, index) in parameterErrors.general" 
-                                   :key="index" class="text-sm text-amber-700">
+                                <p
+                                    v-for="(
+                                        error, index
+                                    ) in parameterErrors.general"
+                                    :key="index"
+                                    class="text-sm text-amber-700"
+                                >
                                     {{ error }}
                                 </p>
                             </div>
@@ -929,34 +1057,54 @@ watch(activeTab, (newTab, oldTab) => {
                         <div class="grid grid-cols-2 gap-4">
                             <div class="space-y-2">
                                 <Label for="edit-group_code">
-                                    Kode Grup <span class="text-red-500">*</span>
+                                    Kode Grup
+                                    <span class="text-red-500">*</span>
                                 </Label>
                                 <Input
                                     id="edit-group_code"
                                     v-model="parameterForm.group_code"
                                     placeholder="Isikan kode grup"
                                     :disabled="loading"
-                                    :class="{ 'border-red-500 focus:ring-red-500': parameterErrors.group_code.length > 0 }"
+                                    :class="{
+                                        'border-red-500 focus:ring-red-500':
+                                            parameterErrors.group_code.length >
+                                            0,
+                                    }"
                                 />
-                                <p v-for="(error, index) in parameterErrors.group_code" 
-                                   :key="index" class="text-xs text-red-500">
+                                <p
+                                    v-for="(
+                                        error, index
+                                    ) in parameterErrors.group_code"
+                                    :key="index"
+                                    class="text-xs text-red-500"
+                                >
                                     {{ error }}
                                 </p>
                             </div>
 
                             <div class="space-y-2">
                                 <Label for="edit-group_name">
-                                    Nama Grup <span class="text-red-500">*</span>
+                                    Nama Grup
+                                    <span class="text-red-500">*</span>
                                 </Label>
                                 <Input
                                     id="edit-group_name"
                                     v-model="parameterForm.group_name"
                                     placeholder="Isikan nama grup"
                                     :disabled="loading"
-                                    :class="{ 'border-red-500 focus:ring-red-500': parameterErrors.group_name.length > 0 }"
+                                    :class="{
+                                        'border-red-500 focus:ring-red-500':
+                                            parameterErrors.group_name.length >
+                                            0,
+                                    }"
                                 />
-                                <p v-for="(error, index) in parameterErrors.group_name" 
-                                   :key="index" class="text-xs text-red-500">
+                                <p
+                                    v-for="(
+                                        error, index
+                                    ) in parameterErrors.group_name"
+                                    :key="index"
+                                    class="text-xs text-red-500"
+                                >
                                     {{ error }}
                                 </p>
                             </div>
@@ -975,26 +1123,41 @@ watch(activeTab, (newTab, oldTab) => {
                         <div class="space-y-2">
                             <div class="flex items-center justify-between">
                                 <div>
-                                    <Label for="edit-is-active" class="text-sm font-medium">
+                                    <Label
+                                        for="edit-is-active"
+                                        class="text-sm font-medium"
+                                    >
                                         Status Aktif
                                     </Label>
                                     <p class="text-xs text-muted-foreground">
                                         Aktifkan parameter ini
                                     </p>
                                 </div>
-                                <Switch 
-                                    id="edit-is-active" 
+                                <Switch
+                                    id="edit-is-active"
                                     v-model="parameterForm.is_active"
                                     :disabled="loading"
                                 />
                             </div>
-                            <div v-if="parameterForm.is_active" class="flex items-center gap-2 text-xs text-blue-600">
-                                <BadgeCheckIcon class="w-4 h-4" />
-                                <span>Parameter ini akan ditandai sebagai aktif</span>
+                            <div
+                                v-if="parameterForm.is_active"
+                                class="flex items-center gap-2 text-xs text-blue-600"
+                            >
+                                <BadgeCheckIcon class="h-4 w-4" />
+                                <span
+                                    >Parameter ini akan ditandai sebagai
+                                    aktif</span
+                                >
                             </div>
-                            <div v-else class="flex items-center gap-2 text-xs text-muted-foreground">
-                                <XCircleIcon class="w-4 h-4" />
-                                <span>Parameter ini akan ditandai sebagai non-aktif</span>
+                            <div
+                                v-else
+                                class="flex items-center gap-2 text-xs text-muted-foreground"
+                            >
+                                <XCircleIcon class="h-4 w-4" />
+                                <span
+                                    >Parameter ini akan ditandai sebagai
+                                    non-aktif</span
+                                >
                             </div>
                         </div>
                     </div>
@@ -1006,7 +1169,12 @@ watch(activeTab, (newTab, oldTab) => {
                     :loading="loading"
                     :valid="isParameterFormValid"
                     @submit="handleUpdateParameter"
-                    @cancel="() => { showEditParameterDialog = false; resetParameterForm(); }"
+                    @cancel="
+                        () => {
+                            showEditParameterDialog = false;
+                            resetParameterForm();
+                        }
+                    "
                 />
             </FormDialog>
 
@@ -1020,23 +1188,29 @@ watch(activeTab, (newTab, oldTab) => {
                     title="Hapus Parameter"
                     description="Proses ini tidak dapat dibatalkan."
                 />
-                
+
                 <FormDialog.Content>
                     <div class="rounded-md border border-red-200 bg-red-50 p-4">
                         <div class="flex items-start gap-3">
-                            <AlertCircleIcon class="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                            <AlertCircleIcon
+                                class="mt-0.5 h-5 w-5 flex-shrink-0 text-red-500"
+                            />
                             <div>
                                 <p class="text-sm font-medium text-red-800">
                                     Konfirmasi Penghapusan
                                 </p>
-                                <p class="text-sm text-red-700 mt-1">
+                                <p class="mt-1 text-sm text-red-700">
                                     Apakah kamu yakin akan menghapus parameter:
                                 </p>
-                                <p class="text-sm font-semibold text-red-800 mt-2">
-                                    {{ parameterToDelete?.group_code }} - {{ parameterToDelete?.group_name }}
+                                <p
+                                    class="mt-2 text-sm font-semibold text-red-800"
+                                >
+                                    {{ parameterToDelete?.group_code }} -
+                                    {{ parameterToDelete?.group_name }}
                                 </p>
-                                <p class="text-xs text-red-600 mt-2">
-                                    Semua nilai parameter yang terkait akan ikut terhapus.
+                                <p class="mt-2 text-xs text-red-600">
+                                    Semua nilai parameter yang terkait akan ikut
+                                    terhapus.
                                 </p>
                             </div>
                         </div>
@@ -1064,13 +1238,22 @@ watch(activeTab, (newTab, oldTab) => {
                 />
 
                 <FormDialog.Content spacing="md">
-                    <div v-if="valueErrors.general.length > 0" 
-                         class="bg-amber-50 border border-amber-200 rounded-md p-3">
+                    <div
+                        v-if="valueErrors.general.length > 0"
+                        class="rounded-md border border-amber-200 bg-amber-50 p-3"
+                    >
                         <div class="flex items-start gap-2">
-                            <AlertCircleIcon class="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                            <AlertCircleIcon
+                                class="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-500"
+                            />
                             <div>
-                                <p v-for="(error, index) in valueErrors.general" 
-                                   :key="index" class="text-sm text-amber-700">
+                                <p
+                                    v-for="(
+                                        error, index
+                                    ) in valueErrors.general"
+                                    :key="index"
+                                    class="text-sm text-amber-700"
+                                >
                                     {{ error }}
                                 </p>
                             </div>
@@ -1081,41 +1264,57 @@ watch(activeTab, (newTab, oldTab) => {
                         <div class="grid grid-cols-2 gap-4">
                             <div class="space-y-2">
                                 <Label for="create-value-code">
-                                    Kode Nilai <span class="text-red-500">*</span>
+                                    Kode Nilai
+                                    <span class="text-red-500">*</span>
                                 </Label>
                                 <Input
                                     id="create-value-code"
                                     v-model="valueForm.code"
                                     placeholder="Isikan kode nilai"
                                     :disabled="loading"
-                                    :class="{ 'border-red-500 focus:ring-red-500': valueErrors.code.length > 0 }"
+                                    :class="{
+                                        'border-red-500 focus:ring-red-500':
+                                            valueErrors.code.length > 0,
+                                    }"
                                 />
-                                <p v-for="(error, index) in valueErrors.code" 
-                                   :key="index" class="text-xs text-red-500">
+                                <p
+                                    v-for="(error, index) in valueErrors.code"
+                                    :key="index"
+                                    class="text-xs text-red-500"
+                                >
                                     {{ error }}
                                 </p>
                             </div>
 
                             <div class="space-y-2">
                                 <Label for="create-value-name">
-                                    Nama Nilai <span class="text-red-500">*</span>
+                                    Nama Nilai
+                                    <span class="text-red-500">*</span>
                                 </Label>
                                 <Input
                                     id="create-value-name"
                                     v-model="valueForm.name"
                                     placeholder="Isikan nama nilai"
                                     :disabled="loading"
-                                    :class="{ 'border-red-500 focus:ring-red-500': valueErrors.name.length > 0 }"
+                                    :class="{
+                                        'border-red-500 focus:ring-red-500':
+                                            valueErrors.name.length > 0,
+                                    }"
                                 />
-                                <p v-for="(error, index) in valueErrors.name" 
-                                   :key="index" class="text-xs text-red-500">
+                                <p
+                                    v-for="(error, index) in valueErrors.name"
+                                    :key="index"
+                                    class="text-xs text-red-500"
+                                >
                                     {{ error }}
                                 </p>
                             </div>
                         </div>
 
                         <div class="space-y-2">
-                            <Label for="create-value-description">Deskripsi</Label>
+                            <Label for="create-value-description"
+                                >Deskripsi</Label
+                            >
                             <Input
                                 id="create-value-description"
                                 v-model="valueForm.description"
@@ -1126,7 +1325,9 @@ watch(activeTab, (newTab, oldTab) => {
 
                         <div class="grid grid-cols-2 gap-4">
                             <div class="space-y-2">
-                                <Label for="create-value-sort-order">Urutan</Label>
+                                <Label for="create-value-sort-order"
+                                    >Urutan</Label
+                                >
                                 <Input
                                     id="create-value-sort-order"
                                     v-model.number="valueForm.sort_order"
@@ -1134,10 +1335,18 @@ watch(activeTab, (newTab, oldTab) => {
                                     min="0"
                                     placeholder="0"
                                     :disabled="loading"
-                                    :class="{ 'border-red-500 focus:ring-red-500': valueErrors.sort_order.length > 0 }"
+                                    :class="{
+                                        'border-red-500 focus:ring-red-500':
+                                            valueErrors.sort_order.length > 0,
+                                    }"
                                 />
-                                <p v-for="(error, index) in valueErrors.sort_order" 
-                                   :key="index" class="text-xs text-red-500">
+                                <p
+                                    v-for="(
+                                        error, index
+                                    ) in valueErrors.sort_order"
+                                    :key="index"
+                                    class="text-xs text-red-500"
+                                >
                                     {{ error }}
                                 </p>
                             </div>
@@ -1145,8 +1354,8 @@ watch(activeTab, (newTab, oldTab) => {
                             <div class="space-y-2">
                                 <Label>Grup Parameter</Label>
                                 <Input
-                                    :value="valueForm.group_code"
-                                    disabled
+                                    id="create-value-group_code"
+                                    v-model="valueForm.group_code"
                                     class="bg-muted"
                                 />
                                 <p class="text-xs text-muted-foreground">
@@ -1158,26 +1367,40 @@ watch(activeTab, (newTab, oldTab) => {
                         <div class="space-y-2">
                             <div class="flex items-center justify-between">
                                 <div>
-                                    <Label for="create-value-is-active" class="text-sm font-medium">
+                                    <Label
+                                        for="create-value-is-active"
+                                        class="text-sm font-medium"
+                                    >
                                         Status Aktif
                                     </Label>
                                     <p class="text-xs text-muted-foreground">
                                         Aktifkan nilai ini
                                     </p>
                                 </div>
-                                <Switch 
-                                    id="create-value-is-active" 
+                                <Switch
+                                    id="create-value-is-active"
                                     v-model="valueForm.is_active"
                                     :disabled="loading"
                                 />
                             </div>
-                            <div v-if="valueForm.is_active" class="flex items-center gap-2 text-xs text-blue-600">
-                                <BadgeCheckIcon class="w-4 h-4" />
-                                <span>Nilai ini akan ditandai sebagai aktif</span>
+                            <div
+                                v-if="valueForm.is_active"
+                                class="flex items-center gap-2 text-xs text-blue-600"
+                            >
+                                <BadgeCheckIcon class="h-4 w-4" />
+                                <span
+                                    >Nilai ini akan ditandai sebagai aktif</span
+                                >
                             </div>
-                            <div v-else class="flex items-center gap-2 text-xs text-muted-foreground">
-                                <XCircleIcon class="w-4 h-4" />
-                                <span>Nilai ini akan ditandai sebagai non-aktif</span>
+                            <div
+                                v-else
+                                class="flex items-center gap-2 text-xs text-muted-foreground"
+                            >
+                                <XCircleIcon class="h-4 w-4" />
+                                <span
+                                    >Nilai ini akan ditandai sebagai
+                                    non-aktif</span
+                                >
                             </div>
                         </div>
                     </div>
@@ -1189,7 +1412,12 @@ watch(activeTab, (newTab, oldTab) => {
                     :loading="loading"
                     :valid="isValueFormValid"
                     @submit="handleCreateValue"
-                    @cancel="() => { showCreateValueDialog = false; resetValueForm(); }"
+                    @cancel="
+                        () => {
+                            showCreateValueDialog = false;
+                            resetValueForm();
+                        }
+                    "
                 />
             </FormDialog>
 
@@ -1205,13 +1433,22 @@ watch(activeTab, (newTab, oldTab) => {
                 />
 
                 <FormDialog.Content spacing="md">
-                    <div v-if="valueErrors.general.length > 0" 
-                         class="bg-amber-50 border border-amber-200 rounded-md p-3">
+                    <div
+                        v-if="valueErrors.general.length > 0"
+                        class="rounded-md border border-amber-200 bg-amber-50 p-3"
+                    >
                         <div class="flex items-start gap-2">
-                            <AlertCircleIcon class="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                            <AlertCircleIcon
+                                class="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-500"
+                            />
                             <div>
-                                <p v-for="(error, index) in valueErrors.general" 
-                                   :key="index" class="text-sm text-amber-700">
+                                <p
+                                    v-for="(
+                                        error, index
+                                    ) in valueErrors.general"
+                                    :key="index"
+                                    class="text-sm text-amber-700"
+                                >
                                     {{ error }}
                                 </p>
                             </div>
@@ -1222,41 +1459,57 @@ watch(activeTab, (newTab, oldTab) => {
                         <div class="grid grid-cols-2 gap-4">
                             <div class="space-y-2">
                                 <Label for="edit-value-code">
-                                    Kode Nilai <span class="text-red-500">*</span>
+                                    Kode Nilai
+                                    <span class="text-red-500">*</span>
                                 </Label>
                                 <Input
                                     id="edit-value-code"
                                     v-model="valueForm.code"
                                     placeholder="Isikan kode nilai"
                                     :disabled="loading"
-                                    :class="{ 'border-red-500 focus:ring-red-500': valueErrors.code.length > 0 }"
+                                    :class="{
+                                        'border-red-500 focus:ring-red-500':
+                                            valueErrors.code.length > 0,
+                                    }"
                                 />
-                                <p v-for="(error, index) in valueErrors.code" 
-                                   :key="index" class="text-xs text-red-500">
+                                <p
+                                    v-for="(error, index) in valueErrors.code"
+                                    :key="index"
+                                    class="text-xs text-red-500"
+                                >
                                     {{ error }}
                                 </p>
                             </div>
 
                             <div class="space-y-2">
                                 <Label for="edit-value-name">
-                                    Nama Nilai <span class="text-red-500">*</span>
+                                    Nama Nilai
+                                    <span class="text-red-500">*</span>
                                 </Label>
                                 <Input
                                     id="edit-value-name"
                                     v-model="valueForm.name"
                                     placeholder="Isikan nama nilai"
                                     :disabled="loading"
-                                    :class="{ 'border-red-500 focus:ring-red-500': valueErrors.name.length > 0 }"
+                                    :class="{
+                                        'border-red-500 focus:ring-red-500':
+                                            valueErrors.name.length > 0,
+                                    }"
                                 />
-                                <p v-for="(error, index) in valueErrors.name" 
-                                   :key="index" class="text-xs text-red-500">
+                                <p
+                                    v-for="(error, index) in valueErrors.name"
+                                    :key="index"
+                                    class="text-xs text-red-500"
+                                >
                                     {{ error }}
                                 </p>
                             </div>
                         </div>
 
                         <div class="space-y-2">
-                            <Label for="edit-value-description">Deskripsi</Label>
+                            <Label for="edit-value-description"
+                                >Deskripsi</Label
+                            >
                             <Input
                                 id="edit-value-description"
                                 v-model="valueForm.description"
@@ -1267,7 +1520,9 @@ watch(activeTab, (newTab, oldTab) => {
 
                         <div class="grid grid-cols-2 gap-4">
                             <div class="space-y-2">
-                                <Label for="edit-value-sort-order">Urutan</Label>
+                                <Label for="edit-value-sort-order"
+                                    >Urutan</Label
+                                >
                                 <Input
                                     id="edit-value-sort-order"
                                     v-model.number="valueForm.sort_order"
@@ -1275,10 +1530,18 @@ watch(activeTab, (newTab, oldTab) => {
                                     min="0"
                                     placeholder="0"
                                     :disabled="loading"
-                                    :class="{ 'border-red-500 focus:ring-red-500': valueErrors.sort_order.length > 0 }"
+                                    :class="{
+                                        'border-red-500 focus:ring-red-500':
+                                            valueErrors.sort_order.length > 0,
+                                    }"
                                 />
-                                <p v-for="(error, index) in valueErrors.sort_order" 
-                                   :key="index" class="text-xs text-red-500">
+                                <p
+                                    v-for="(
+                                        error, index
+                                    ) in valueErrors.sort_order"
+                                    :key="index"
+                                    class="text-xs text-red-500"
+                                >
                                     {{ error }}
                                 </p>
                             </div>
@@ -1286,8 +1549,8 @@ watch(activeTab, (newTab, oldTab) => {
                             <div class="space-y-2">
                                 <Label>Grup Parameter</Label>
                                 <Input
-                                    :value="valueForm.group_code"
-                                    disabled
+                                    id="edit-value-group_code"
+                                    v-model="valueForm.group_code"
                                     class="bg-muted"
                                 />
                                 <p class="text-xs text-muted-foreground">
@@ -1299,26 +1562,40 @@ watch(activeTab, (newTab, oldTab) => {
                         <div class="space-y-2">
                             <div class="flex items-center justify-between">
                                 <div>
-                                    <Label for="edit-value-is-active" class="text-sm font-medium">
+                                    <Label
+                                        for="edit-value-is-active"
+                                        class="text-sm font-medium"
+                                    >
                                         Status Aktif
                                     </Label>
                                     <p class="text-xs text-muted-foreground">
                                         Aktifkan nilai ini
                                     </p>
                                 </div>
-                                <Switch 
-                                    id="edit-value-is-active" 
+                                <Switch
+                                    id="edit-value-is-active"
                                     v-model="valueForm.is_active"
                                     :disabled="loading"
                                 />
                             </div>
-                            <div v-if="valueForm.is_active" class="flex items-center gap-2 text-xs text-blue-600">
-                                <BadgeCheckIcon class="w-4 h-4" />
-                                <span>Nilai ini akan ditandai sebagai aktif</span>
+                            <div
+                                v-if="valueForm.is_active"
+                                class="flex items-center gap-2 text-xs text-blue-600"
+                            >
+                                <BadgeCheckIcon class="h-4 w-4" />
+                                <span
+                                    >Nilai ini akan ditandai sebagai aktif</span
+                                >
                             </div>
-                            <div v-else class="flex items-center gap-2 text-xs text-muted-foreground">
-                                <XCircleIcon class="w-4 h-4" />
-                                <span>Nilai ini akan ditandai sebagai non-aktif</span>
+                            <div
+                                v-else
+                                class="flex items-center gap-2 text-xs text-muted-foreground"
+                            >
+                                <XCircleIcon class="h-4 w-4" />
+                                <span
+                                    >Nilai ini akan ditandai sebagai
+                                    non-aktif</span
+                                >
                             </div>
                         </div>
                     </div>
@@ -1330,7 +1607,12 @@ watch(activeTab, (newTab, oldTab) => {
                     :loading="loading"
                     :valid="isValueFormValid"
                     @submit="handleUpdateValue"
-                    @cancel="() => { showEditValueDialog = false; resetValueForm(); }"
+                    @cancel="
+                        () => {
+                            showEditValueDialog = false;
+                            resetValueForm();
+                        }
+                    "
                 />
             </FormDialog>
 
@@ -1344,20 +1626,25 @@ watch(activeTab, (newTab, oldTab) => {
                     title="Hapus Nilai Parameter"
                     description="Proses ini tidak dapat dibatalkan."
                 />
-                
+
                 <FormDialog.Content>
                     <div class="rounded-md border border-red-200 bg-red-50 p-4">
                         <div class="flex items-start gap-3">
-                            <AlertCircleIcon class="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                            <AlertCircleIcon
+                                class="mt-0.5 h-5 w-5 flex-shrink-0 text-red-500"
+                            />
                             <div>
                                 <p class="text-sm font-medium text-red-800">
                                     Konfirmasi Penghapusan
                                 </p>
-                                <p class="text-sm text-red-700 mt-1">
+                                <p class="mt-1 text-sm text-red-700">
                                     Apakah kamu yakin akan menghapus nilai:
                                 </p>
-                                <p class="text-sm font-semibold text-red-800 mt-2">
-                                    {{ valueToDelete?.code }} - {{ valueToDelete?.name }}
+                                <p
+                                    class="mt-2 text-sm font-semibold text-red-800"
+                                >
+                                    {{ valueToDelete?.code }} -
+                                    {{ valueToDelete?.name }}
                                 </p>
                             </div>
                         </div>

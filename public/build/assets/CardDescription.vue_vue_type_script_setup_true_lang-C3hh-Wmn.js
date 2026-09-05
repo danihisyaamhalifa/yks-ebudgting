@@ -1,1 +1,0 @@
-import{c as r}from"./Primitive-CaYYFpnA.js";import{d as t,c as a,r as n,l as c,u as l,o as p}from"./app-DCM21vCK.js";const u=t({__name:"CardDescription",props:{class:{}},setup(s){const e=s;return(o,m)=>(p(),a("p",{"data-slot":"card-description",class:c(l(r)("text-muted-foreground text-sm",e.class))},[n(o.$slots,"default")],2))}});export{u as _};

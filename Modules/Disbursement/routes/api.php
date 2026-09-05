@@ -57,4 +57,20 @@ Route::prefix('v1')
         Route::apiResource('budget-accountabilities', BudgetAccountabilityController::class)->names([
             'index' => 'budget.accountability.index',
         ]);
+
+        Route::prefix('budget-accountabilities')->group(function () {
+            Route::get(
+                '{id}/approvals',
+                [BudgetAccountabilityController::class, 'approvals']
+            )->name('budget-accountabilities.approvals');
+        });
+
+        // Approval Actions
+        Route::prefix('budget-accountability-approvals')->group(function () {
+            Route::post('{id}/submit', [BudgetAccountabilityController::class, 'submit']);
+            Route::post('{id}/resubmit', [BudgetAccountabilityController::class, 'resubmit']);
+            Route::post('{id}/approve', [BudgetAccountabilityController::class, 'approve']);
+            Route::post('{id}/reject', [BudgetAccountabilityController::class, 'reject']);
+            Route::post('{id}/return', [BudgetAccountabilityController::class, 'returned']);
+        });
     });

@@ -2,6 +2,9 @@
 import DataTable from '@/components/compound/data-table/DataTable.vue';
 import { FormDialog } from '@/components/compound/form-dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
     Select,
     SelectContent,
@@ -12,8 +15,13 @@ import {
 import { createActionColumn, createColumn } from '@/composables/useDataTable';
 import type { ColumnDef } from '@tanstack/vue-table';
 import axios from 'axios';
-import { EditIcon, PlusIcon, XIcon } from 'lucide-vue-next';
-import { h, onMounted, ref } from 'vue';
+import {
+    EditIcon,
+    PlusIcon,
+    TrashIcon,
+    XIcon,
+} from 'lucide-vue-next';
+import { computed, h, onMounted, reactive, ref } from 'vue';
 import { toast } from 'vue-sonner';
 
 interface ApprovalLevel {
@@ -34,23 +42,57 @@ interface Role {
     name: string;
 }
 
+interface HeaderOption {
+    id: number;
+    name: string;
+    description?: string | null;
+}
+
+interface WorkflowModule {
+    id: string;
+    module_name: string;
+    steps: Array<{
+        id: string;
+        approval_level: number;
+        role_id: number;
+        role?: { id: number; name: string } | null;
+    }>;
+}
+
 const moduleOptions = [
     { value: 'perencanaan_anggaran', label: 'Perencanaan Anggaran' },
     { value: 'pengajuan_pencairan', label: 'Pengajuan Pencairan' },
     { value: 'realisasi_pencairan', label: 'Realisasi Pencairan' },
+    { value: 'pertanggungjawaban_anggaran', label: 'Pertanggungjawaban Anggaran' },
 ];
 
 // Roles data
 const roleOptions = ref<Role[]>([]);
 const isLoadingRole = ref(false);
 
-// State data
+// Header selection + management
+const headerOptions = ref<HeaderOption[]>([]);
+const isLoadingHeader = ref(false);
+const selectedHeader = ref<number | null>(null);
+
+// Header create/edit state
+const headerForm = reactive({ id: null as number | null, name: '', description: '' });
+const showCreateHeaderDialog = ref(false);
+const showEditHeaderDialog = ref(false);
+const showDeleteHeaderDialog = ref(false);
+const headerSaving = ref(false);
+
+// Module workflow (per selected header)
 const selectedModule = ref('');
 const moduleLevels = ref<ApprovalLevel[]>([]);
-
-// Data untuk ditampilkan di tabel
-const modulesData = ref<ModuleWithLevels[]>([]);
+const workflowModules = ref<WorkflowModule[]>([]);
 const loadingModules = ref(false);
+const showLevelsDialog = ref(false);
+
+const selectedHeaderLabel = computed(() => {
+    const h = headerOptions.value.find((it) => it.id === selectedHeader.value);
+    return h ? h.name : '';
+});
 
 // Load roles from API
 const loadRoleOptions = async () => {
@@ -66,42 +108,86 @@ const loadRoleOptions = async () => {
     }
 };
 
-// Load all module level
-const loadAllModuleLevels = async () => {
-    loadingModules.value = true;
-
+// Load approval workflow headers
+const loadHeaders = async (keepSelection = false) => {
+    isLoadingHeader.value = true;
     try {
-        modulesData.value = moduleOptions.map((module) => ({
-            module_name: module.value,
-            module_label: module.label,
-            levels: [],
+        const response = await axios.get('/api/v1/approval-workflow-headers');
+        headerOptions.value = (response.data?.data || []).map((h: any) => ({
+            id: h.id,
+            name: h.name,
+            description: h.description,
         }));
 
-        const response = await axios.get('/api/v1/approval-workflows/');
-        const existingLevels = response.data.data || [];
-
-        modulesData.value.forEach((module) => {
-            const moduleLevels = existingLevels.filter(
-                (level: any) => level.module_name === module.module_name,
+        if (!keepSelection && headerOptions.value.length > 0) {
+            selectedHeader.value = headerOptions.value[0].id;
+            await loadHeaderWorkflows();
+        } else if (selectedHeader.value) {
+            const stillExists = headerOptions.value.some(
+                (h) => h.id === selectedHeader.value,
             );
-            module.levels = moduleLevels
-                .map((level: any) => ({
-                    id: level.id,
-                    approval_level: level.approval_level,
-                    role_id: level.role.id,
-                    role_name: level.role.name,
-                }))
-                .sort((a: any, b: any) => a.approval_level - b.approval_level);
+            if (!stillExists) {
+                selectedHeader.value =
+                    headerOptions.value.length > 0
+                        ? headerOptions.value[0].id
+                        : null;
+            }
+            await loadHeaderWorkflows();
+        }
+    } catch (error) {
+        console.error('Error load headers:', error);
+        toast.error('Gagal memuat daftar approval workflow');
+    } finally {
+        isLoadingHeader.value = false;
+    }
+};
+
+const onHeaderChange = () => {
+    loadHeaderWorkflows();
+};
+
+// Load module workflows for the selected header
+const loadHeaderWorkflows = async () => {
+    if (!selectedHeader.value) {
+        workflowModules.value = [];
+        return;
+    }
+
+    loadingModules.value = true;
+    try {
+        const response = await axios.get('/api/v1/approval-workflows/', {
+            params: { header_id: selectedHeader.value },
         });
+        workflowModules.value = response.data?.data?.workflows || [];
     } catch (error: any) {
-        console.error('Error load modules levels:', error);
-        toast.error('Gagal memuat data level persetujuan. Silakan coba lagi.', {
+        console.error('Error load workflows:', error);
+        toast.error('Gagal memuat data alur persetujuan. Silakan coba lagi.', {
             id: 'load-levels',
         });
     } finally {
         loadingModules.value = false;
     }
 };
+
+const getLevelsFor = (moduleValue: string): ApprovalLevel[] => {
+    const wf = workflowModules.value.find((w) => w.module_name === moduleValue);
+    return (wf?.steps || [])
+        .map((s) => ({
+            id: s.id,
+            approval_level: s.approval_level,
+            role_id: s.role_id,
+            role_name: s.role?.name,
+        }))
+        .sort((a, b) => a.approval_level - b.approval_level);
+};
+
+const modulesData = computed<ModuleWithLevels[]>(() =>
+    moduleOptions.map((module) => ({
+        module_name: module.value,
+        module_label: module.label,
+        levels: getLevelsFor(module.value),
+    })),
+);
 
 const columns: ColumnDef<ModuleWithLevels>[] = [
     createColumn({
@@ -162,57 +248,145 @@ const columns: ColumnDef<ModuleWithLevels>[] = [
     ]),
 ];
 
-// Edit module levels
-const editModuleLevels = async (module: ModuleWithLevels) => {
-    selectedModule.value = module.module_name;
+// --- Header CRUD helpers ------------------------------------------------
+const resetHeaderForm = () => {
+    headerForm.id = null;
+    headerForm.name = '';
+    headerForm.description = '';
+};
 
+const openCreateHeader = () => {
+    resetHeaderForm();
+    showCreateHeaderDialog.value = true;
+};
+
+const openEditHeader = () => {
+    if (!selectedHeader.value) return;
+    const h = headerOptions.value.find((it) => it.id === selectedHeader.value);
+    if (!h) return;
+    headerForm.id = h.id;
+    headerForm.name = h.name;
+    headerForm.description = h.description || '';
+    showEditHeaderDialog.value = true;
+};
+
+const submitCreateHeader = async () => {
+    if (!headerForm.name || !headerForm.name.trim()) {
+        toast.error('Nama approval workflow wajib diisi');
+        return;
+    }
+
+    headerSaving.value = true;
     try {
-        moduleLevels.value = module.levels.map((level) => ({
-            id: level.id,
-            approval_level: level.approval_level,
-            role_id: level.role_id,
-            role_name: level.role_name,
-        }));
-
-        moduleLevels.value.sort((a, b) => a.approval_level - b.approval_level);
-
-        if (moduleLevels.value.length === 0) {
-            moduleLevels.value.push({
-                approval_level: 1,
-                role_id: null,
-            });
+        const response = await axios.post('/api/v1/approval-workflow-headers', {
+            name: headerForm.name.trim(),
+            description: headerForm.description.trim() || null,
+        });
+        const created = response.data?.data;
+        showCreateHeaderDialog.value = false;
+        await loadHeaders();
+        if (created?.id) {
+            selectedHeader.value = created.id;
+            await loadHeaderWorkflows();
         }
-
-        showLevelsDialog.value = true;
-    } catch (error) {
-        console.error('Error preparing module levels:', error);
-        toast.error('Gagal memuat level persetujuan');
+        toast.success('Approval workflow berhasil ditambahkan');
+    } catch (error: any) {
+        console.error(error);
+        toast.error(error.response?.data?.message || 'Gagal menambahkan approval workflow');
+    } finally {
+        headerSaving.value = false;
     }
 };
 
-// Add new approval level
-const addApprovalLevel = () => {
-    const nextLevel = moduleLevels.value.length + 1;
-    moduleLevels.value.push({
-        approval_level: nextLevel,
-        role_id: null,
-    });
+const submitEditHeader = async () => {
+    if (!headerForm.id) return;
+    if (!headerForm.name || !headerForm.name.trim()) {
+        toast.error('Nama approval workflow wajib diisi');
+        return;
+    }
+
+    headerSaving.value = true;
+    try {
+        await axios.put(
+            `/api/v1/approval-workflow-headers/${headerForm.id}`,
+            {
+                name: headerForm.name.trim(),
+                description: headerForm.description.trim() || null,
+            },
+        );
+        showEditHeaderDialog.value = false;
+        await loadHeaders(true);
+        toast.success('Approval workflow berhasil diperbarui');
+    } catch (error: any) {
+        console.error(error);
+        toast.error(error.response?.data?.message || 'Gagal memperbarui approval workflow');
+    } finally {
+        headerSaving.value = false;
+    }
 };
 
-// Remove approval level
+const confirmDeleteHeader = () => {
+    if (!selectedHeader.value) return;
+    showDeleteHeaderDialog.value = true;
+};
+
+const submitDeleteHeader = async () => {
+    if (!selectedHeader.value) return;
+
+    headerSaving.value = true;
+    try {
+        await axios.delete(
+            `/api/v1/approval-workflow-headers/${selectedHeader.value}`,
+        );
+        showDeleteHeaderDialog.value = false;
+        selectedHeader.value = null;
+        await loadHeaders();
+        toast.success('Approval workflow berhasil dihapus');
+    } catch (error: any) {
+        console.error(error);
+        toast.error(error.response?.data?.message || 'Gagal menghapus approval workflow');
+    } finally {
+        headerSaving.value = false;
+    }
+};
+
+// --- Module level config ------------------------------------------------
+const editModuleLevels = (module: ModuleWithLevels) => {
+    if (!selectedHeader.value) return;
+    selectedModule.value = module.module_name;
+
+    moduleLevels.value = module.levels.map((level) => ({
+        id: level.id,
+        approval_level: level.approval_level,
+        role_id: level.role_id,
+        role_name: level.role_name,
+    }));
+
+    moduleLevels.value.sort((a, b) => a.approval_level - b.approval_level);
+
+    if (moduleLevels.value.length === 0) {
+        moduleLevels.value.push({ approval_level: 1, role_id: null });
+    }
+
+    showLevelsDialog.value = true;
+};
+
+const addApprovalLevel = () => {
+    const nextLevel = moduleLevels.value.length + 1;
+    moduleLevels.value.push({ approval_level: nextLevel, role_id: null });
+};
+
 const removeApprovalLevel = (index: number) => {
     if (moduleLevels.value.length === 1) {
         toast.error('Minimal harus ada 1 level persetujuan');
         return;
     }
-
     moduleLevels.value.splice(index, 1);
     moduleLevels.value.forEach((level, idx) => {
         level.approval_level = idx + 1;
     });
 };
 
-// Update role for a specific level
 const updateRoleForLevel = (index: number, roleId: number) => {
     const selectedRole = roleOptions.value.find((r) => r.id === roleId);
     moduleLevels.value[index].role_id = roleId;
@@ -221,8 +395,9 @@ const updateRoleForLevel = (index: number, roleId: number) => {
     );
 };
 
-// Save all levels for the module
-const saveApprovalWorkflow = async () => {
+const saveModuleWorkflow = async () => {
+    if (!selectedHeader.value) return;
+
     const invalidLevels = moduleLevels.value.filter((level) => !level.role_id);
     if (invalidLevels.length > 0) {
         toast.error(
@@ -237,28 +412,27 @@ const saveApprovalWorkflow = async () => {
     });
 
     try {
-        const payload = moduleLevels.value.map((level) => ({
-            module_name: selectedModule.value,
-            approval_level: level.approval_level,
-            role_id: level.role_id,
-        }));
-
         await axios.post('/api/v1/approval-workflows', {
-            workflows: payload,
+            header_id: selectedHeader.value,
+            workflows: [
+                {
+                    module_name: selectedModule.value,
+                    steps: moduleLevels.value.map((level) => ({
+                        approval_level: level.approval_level,
+                        role_id: level.role_id,
+                    })),
+                },
+            ],
         });
 
         showLevelsDialog.value = false;
-        await loadAllModuleLevels();
+        await loadHeaderWorkflows();
         toast.success(
-            `Konfigurasi level persetujuan untuk ${getModuleLabel(selectedModule.value)} berhasil disimpan`,
-            {
-                id: 'save-levels',
-                duration: 3000,
-            },
+            `Konfigurasi ${getModuleLabel(selectedModule.value)} untuk "${selectedHeaderLabel.value}" berhasil disimpan`,
+            { id: 'save-levels', duration: 3000 },
         );
     } catch (error: any) {
         console.error('Error saving module levels:', error);
-
         if (error.response?.status === 422) {
             const errors = error.response.data.errors;
             if (errors) {
@@ -266,24 +440,20 @@ const saveApprovalWorkflow = async () => {
                     toast.error(Array.isArray(err) ? err[0] : err);
                 });
             } else {
-                toast.error(
-                    error.response?.data?.message || 'Data tidak valid',
-                );
+                toast.error(error.response?.data?.message || 'Data tidak valid');
             }
         } else if (error.response?.data?.message) {
             toast.error(error.response.data.message, { id: 'save-levels' });
         } else {
-            toast.error(
-                'Gagal menyimpan level persetujuan. Silakan coba lagi.',
-                { id: 'save-levels' },
-            );
+            toast.error('Gagal menyimpan level persetujuan. Silakan coba lagi.', {
+                id: 'save-levels',
+            });
         }
     } finally {
         loadingModules.value = false;
     }
 };
 
-// Helper functions
 const getModuleLabel = (moduleValue: string) => {
     return (
         moduleOptions.find((m) => m.value === moduleValue)?.label || moduleValue
@@ -291,78 +461,87 @@ const getModuleLabel = (moduleValue: string) => {
 };
 
 const refreshData = async () => {
-    await loadAllModuleLevels();
+    await loadHeaders();
 };
 
-const searchModules = (term: string) => {
-    if (!term || term.trim() === '') {
-        loadAllModuleLevels();
-        return;
-    }
-
-    const searchTerm = term.toLowerCase();
-    const filteredModules = moduleOptions.filter(
-        (module) =>
-            module.label.toLowerCase().includes(searchTerm) ||
-            module.value.toLowerCase().includes(searchTerm),
-    );
-
-    modulesData.value = filteredModules.map((module) => {
-        const originalModule = modulesData.value.find(
-            (m) => m.module_name === module.value,
-        );
-        return {
-            module_name: module.value,
-            module_label: module.label,
-            levels: originalModule?.levels || [],
-        };
-    });
-
-    toast.info(
-        `Menampilkan ${filteredModules.length} dari ${moduleOptions.length} modul`,
-        { duration: 2000 },
-    );
+const searchModules = () => {
+    // search handled client-side by DataTable
 };
 
 // Load data on mount
 onMounted(() => {
     loadRoleOptions();
-    loadAllModuleLevels();
+    loadHeaders();
 });
 
-defineExpose({
-    refreshData,
-    searchModules,
-});
-
-const showLevelsDialog = ref(false);
+defineExpose({ refreshData, searchModules });
 </script>
 
 <template>
-    <!-- <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto">
-        <DataTable
-            :columns="columns"
-            :data="modulesData"
-            :loading="loadingModules"
-            :actions="{
-                refresh: refreshData,
-                search: searchModules,
-            }"
-            searchable
-            search-placeholder="Cari modul..."
-            show-pagination
-            show-page-info
-            empty-message="Tidak ada data modul yang ditemukan"
-            :server-side="false"
-            :exportable="true"
-        />
-    </div> -->
-
     <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto">
+        <!-- Header Selector + Actions -->
+        <div class="flex flex-wrap items-center gap-3">
+            <div class="flex items-center gap-3">
+                <label class="text-sm font-medium">Alur Persetujuan</label>
+                <Select
+                    :model-value="selectedHeader"
+                    @update:model-value="(val) => { selectedHeader = val; onHeaderChange(); }"
+                    :disabled="isLoadingHeader"
+                >
+                    <SelectTrigger class="w-72">
+                        <SelectValue
+                            :placeholder="isLoadingHeader ? 'Memuat...' : 'Pilih approval workflow'"
+                        />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem
+                            v-for="h in headerOptions"
+                            :key="h.id"
+                            :value="h.id"
+                        >
+                            {{ h.name }}
+                        </SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <Button
+                    type="button"
+                    size="sm"
+                    variant="default"
+                    @click="openCreateHeader"
+                >
+                    <PlusIcon class="mr-1.5 h-4 w-4" />
+                    Tambah
+                </Button>
+                <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    @click="openEditHeader"
+                    :disabled="!selectedHeader"
+                >
+                    <EditIcon class="mr-1.5 h-4 w-4" />
+                    Edit
+                </Button>
+                <Button
+                    type="button"
+                    size="sm"
+                    variant="destructive"
+                    @click="confirmDeleteHeader"
+                    :disabled="!selectedHeader"
+                >
+                    <TrashIcon class="mr-1.5 h-4 w-4" />
+                    Hapus
+                </Button>
+            </div>
+        </div>
+
         <DataTable
             :columns="columns"
             :data="modulesData"
-            :loading="loadingModules"
+            :loading="loadingModules || !selectedHeader"
             searchable
             search-placeholder="Cari modul..."
             show-pagination
@@ -373,6 +552,106 @@ const showLevelsDialog = ref(false);
         />
     </div>
 
+    <!-- Create Header -->
+    <FormDialog
+        v-model:open="showCreateHeaderDialog"
+        :loading="headerSaving"
+        size="md"
+    >
+        <FormDialog.Header
+            title="Tambah Alur Persetujuan"
+            description="Buat approval workflow baru yang nantinya dapat dipilih oleh unit."
+        />
+        <FormDialog.Content spacing="md">
+            <div class="space-y-4">
+                <div class="space-y-2">
+                    <Label for="hdr-create-name">Nama</Label>
+                    <Input
+                        id="hdr-create-name"
+                        v-model="headerForm.name"
+                        placeholder="cth: Alur Prodi, Alur Biro Keuangan"
+                        :disabled="headerSaving"
+                    />
+                </div>
+                <div class="space-y-2">
+                    <Label for="hdr-create-desc">Deskripsi</Label>
+                    <Textarea
+                        id="hdr-create-desc"
+                        v-model="headerForm.description"
+                        placeholder="Deskripsi singkat (opsional)"
+                        :disabled="headerSaving"
+                    />
+                </div>
+            </div>
+        </FormDialog.Content>
+        <FormDialog.Footer
+            submit-text="Simpan"
+            cancel-text="Batal"
+            :loading="headerSaving"
+            :valid="headerForm.name.trim().length > 0"
+            @submit="submitCreateHeader"
+        />
+    </FormDialog>
+
+    <!-- Edit Header -->
+    <FormDialog
+        v-model:open="showEditHeaderDialog"
+        :loading="headerSaving"
+        size="md"
+    >
+        <FormDialog.Header
+            title="Edit Alur Persetujuan"
+            description="Perbarui nama / deskripsi approval workflow."
+        />
+        <FormDialog.Content spacing="md">
+            <div class="space-y-4">
+                <div class="space-y-2">
+                    <Label for="hdr-edit-name">Nama</Label>
+                    <Input
+                        id="hdr-edit-name"
+                        v-model="headerForm.name"
+                        :disabled="headerSaving"
+                    />
+                </div>
+                <div class="space-y-2">
+                    <Label for="hdr-edit-desc">Deskripsi</Label>
+                    <Textarea
+                        id="hdr-edit-desc"
+                        v-model="headerForm.description"
+                        :disabled="headerSaving"
+                    />
+                </div>
+            </div>
+        </FormDialog.Content>
+        <FormDialog.Footer
+            submit-text="Perbarui"
+            cancel-text="Batal"
+            :loading="headerSaving"
+            :valid="headerForm.name.trim().length > 0"
+            @submit="submitEditHeader"
+        />
+    </FormDialog>
+
+    <!-- Delete Header -->
+    <FormDialog
+        v-model:open="showDeleteHeaderDialog"
+        :loading="headerSaving"
+        size="sm"
+    >
+        <FormDialog.Header
+            title="Hapus Alur Persetujuan"
+            :description="`Hapus approval workflow ${selectedHeaderLabel || ''}? Aksi tidak dapat dibatalkan.`"
+        />
+        <FormDialog.Footer
+            submit-text="Hapus"
+            cancel-text="Batal"
+            submit-variant="destructive"
+            :loading="headerSaving"
+            @submit="submitDeleteHeader"
+        />
+    </FormDialog>
+
+    <!-- Module Levels -->
     <FormDialog
         v-model:open="showLevelsDialog"
         :loading="loadingModules"
@@ -380,7 +659,7 @@ const showLevelsDialog = ref(false);
     >
         <FormDialog.Header
             :title="`Update Alur Persetujuan - ${getModuleLabel(selectedModule)}`"
-            description=""
+            :description="`Alur Persetujuan: ${selectedHeaderLabel}`"
         />
 
         <FormDialog.Content spacing="md">
@@ -413,18 +692,12 @@ const showLevelsDialog = ref(false);
                         <div class="min-w-0 flex-1">
                             <Select
                                 :model-value="level.role_id"
-                                @update:model-value="
-                                    (val) => updateRoleForLevel(index, val)
-                                "
+                                @update:model-value="(val) => updateRoleForLevel(index, val)"
                                 :disabled="loadingModules || isLoadingRole"
                             >
                                 <SelectTrigger class="w-full">
                                     <SelectValue
-                                        :placeholder="
-                                            isLoadingRole
-                                                ? 'Memuat role...'
-                                                : 'Pilih role yang bertanggung jawab'
-                                        "
+                                        :placeholder="isLoadingRole ? 'Memuat role...' : 'Pilih role yang bertanggung jawab'"
                                     />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -445,9 +718,7 @@ const showLevelsDialog = ref(false);
                                 variant="ghost"
                                 size="icon"
                                 @click="removeApprovalLevel(index)"
-                                :disabled="
-                                    loadingModules || moduleLevels.length === 1
-                                "
+                                :disabled="loadingModules || moduleLevels.length === 1"
                                 class="h-8 w-8 hover:bg-red-50"
                             >
                                 <XIcon class="h-4 w-4 text-red-500" />
@@ -464,14 +735,14 @@ const showLevelsDialog = ref(false);
                     menambahkan.
                 </div>
 
-                <div
-                    class="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-3"
-                >
+                <div class="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-3">
                     <p class="text-sm text-blue-800">
-                        <strong>Informasi:</strong> Level persetujuan akan
-                        diproses secara berurutan dari Level 1 (terendah) hingga
-                        level tertinggi. Setiap level harus memiliki role yang
-                        berbeda sesuai dengan hierarki persetujuan.
+                        <strong>Informasi:</strong> Level persetujuan diproses
+                        berurutan dari Level 1 hingga level tertinggi. Setiap
+                        level harus memiliki role berbeda sesuai hierarki.
+                        Konfigurasi berlaku pada approval workflow
+                        <strong>{{ selectedHeaderLabel }}</strong> yang dipakai
+                        oleh unit yang memilihnya.
                     </p>
                 </div>
             </div>
@@ -481,11 +752,8 @@ const showLevelsDialog = ref(false);
             submit-text="Simpan Alur Persetujuan"
             cancel-text="Batal"
             :loading="loadingModules"
-            :valid="
-                moduleLevels.length > 0 &&
-                moduleLevels.every((l) => l.role_id !== null)
-            "
-            @submit="saveApprovalWorkflow"
+            :valid="moduleLevels.length > 0 && moduleLevels.every((l) => l.role_id !== null)"
+            @submit="saveModuleWorkflow"
         />
     </FormDialog>
 </template>

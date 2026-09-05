@@ -126,6 +126,14 @@ class BudgetAccountability extends Model
     }
 
     /**
+     * Get the approval steps for the accountability.
+     */
+    public function approvals(): HasMany
+    {
+        return $this->hasMany(BudgetAccountabilityApproval::class, 'budget_accountability_id');
+    }
+
+    /**
      * Get the remaining amount that hasn't been accounted for.
      */
     public function getRemainingAmountAttribute(): float

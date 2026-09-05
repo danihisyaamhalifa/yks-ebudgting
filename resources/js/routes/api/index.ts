@@ -35,6 +35,7 @@ import user from './user'
 import roles from './roles'
 import permissions from './permissions'
 import approvalWorkflow from './approval-workflow'
+import approvalWorkflowHeader from './approval-workflow-header'
 const api = {
     budgetRequests: Object.assign(budgetRequests, budgetRequests),
 parameter: Object.assign(parameter, parameter),
@@ -73,6 +74,7 @@ user: Object.assign(user, user),
 roles: Object.assign(roles, roles),
 permissions: Object.assign(permissions, permissions),
 approvalWorkflow: Object.assign(approvalWorkflow, approvalWorkflow),
+approvalWorkflowHeader: Object.assign(approvalWorkflowHeader, approvalWorkflowHeader),
 }
 
 export default api

@@ -15,6 +15,7 @@ class BudgetRequestActivity extends Model
 
     protected $fillable = [
         'budget_request_header_id',
+        'parent_id',
         'activity_id',
         'description',
         'output_indicator',
@@ -65,6 +66,46 @@ class BudgetRequestActivity extends Model
     public function disbursements(): HasMany
     {
         return $this->hasMany(BudgetDisbursementHeader::class, 'budget_request_activity_id');
+    }
+
+    /**
+     * Parent activity (grouping container).
+     */
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'parent_id');
+    }
+
+    /**
+     * Child activities milik parent ini.
+     */
+    public function children(): HasMany
+    {
+        return $this->hasMany(self::class, 'parent_id');
+    }
+
+    /**
+     * Apakah aktivitas ini adalah parent/grouping (tidak punya item sendiri).
+     */
+    public function isParent(): bool
+    {
+        if ($this->relationLoaded('children')) {
+            return $this->children->isNotEmpty();
+        }
+
+        return $this->children()->exists();
+    }
+
+    /**
+     * Total dari seluruh child activities (untuk parent).
+     */
+    public function getChildrenTotalAttribute(): float
+    {
+        if ($this->relationLoaded('children')) {
+            return (float) $this->children->sum('total_amount');
+        }
+
+        return 0.0;
     }
 
     /**

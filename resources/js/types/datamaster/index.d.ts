@@ -36,6 +36,7 @@ export interface Unit {
     bank_name?: string;
     bank_account_number?: string;
     bank_account_name?: string;
+    approval_workflow_id?: number | null;
     is_active: boolean;
 }
 

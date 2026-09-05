@@ -38,6 +38,14 @@ interface BudgetRequestDetail {
     unit_price: number;
     total_price: number;
     unit_measure_name?: string;
+    multipliers?: BudgetRequestItemMultiplier[];
+}
+
+interface BudgetRequestItemMultiplier {
+    id?: number;
+    sequence: number;
+    label: string;
+    value: number;
 }
 
 interface BudgetActivity {
@@ -137,6 +145,22 @@ const breadcrumbs: BreadcrumbItem[] = [
 const formatCurrency = (amount: number | string) => {
     const num = typeof amount === 'string' ? parseFloat(amount) : amount;
     return new Intl.NumberFormat('id-ID').format(num || 0);
+};
+
+// Formula pengali volume untuk tampilan (14 Hari × 50 Mahasiswa)
+const formatFormula = (item: BudgetRequestDetail): string => {
+    const multipliers = item.multipliers || [];
+    if (multipliers.length === 0) {
+        return item.quantity ? `${Number(item.quantity).toFixed(0)}` : '-';
+    }
+
+    return multipliers
+        .filter((m) => (Number(m.value) || 0) > 0)
+        .map(
+            (m) =>
+                `${Number(m.value).toLocaleString('id-ID')}${m.label ? ' ' + m.label : ''}`,
+        )
+        .join(' × ');
 };
 
 // Format date
@@ -240,14 +264,14 @@ const loadBudgetRequest = async () => {
             total_amount: data.total_amount,
         };
 
-        // Transform activities - default showItems = true
-        budgetActivities.value = (data.request_activities || []).map((activity: any) => ({
+        // Transform activities - flatten parent/child, default showItems = true
+        const mapActivityView = (activity: any) => ({
             id: activity.id,
             activity_id: activity.activity_id,
             description: activity.activity?.name || activity.description || '',
             activity_code: activity.activity?.code || '',
-            start_date: activity.start_date ? activity.start_date.split('T')[0] : '',
-            end_date: activity.end_date ? activity.end_date.split('T')[0] : '',
+            start_date: activity.start_date ? String(activity.start_date).split('T')[0] : '',
+            end_date: activity.end_date ? String(activity.end_date).split('T')[0] : '',
             total_amount: activity.total_amount || 0,
             showItems: true, // Default expand
             request_items: (activity.request_items || []).map((detail: any) => ({
@@ -259,6 +283,12 @@ const loadBudgetRequest = async () => {
                 unit_measure_name: detail.unit_measure?.name || '',
                 unit_price: detail.unit_price || 0,
                 total_price: detail.total_amount || 0,
+                multipliers: (detail.multipliers || []).map((m: any) => ({
+                    id: m.id,
+                    sequence: m.sequence || 1,
+                    label: m.label || 'Volume',
+                    value: parseFloat(m.value) || 0,
+                })),
             })),
             files: (activity.documents || []).map((doc: any) => ({
                 id: doc.id,
@@ -270,7 +300,14 @@ const loadBudgetRequest = async () => {
                 status: 'success',
             })),
             output_indicator: activity.output_indicator || '',
-        }));
+        });
+
+        budgetActivities.value = (data.request_activities || []).flatMap((activity: any) => {
+            const children = (activity.children || []).map((child: any) =>
+                mapActivityView(child),
+            );
+            return [mapActivityView(activity), ...children];
+        });
     } catch (error) {
         console.error('Failed to load budget request:', error);
         toast.error('Gagal memuat data perencanaan anggaran');
@@ -485,7 +522,7 @@ onMounted(() => {
                                                 <TableRow>
                                                     <TableHead class="w-12">No</TableHead>
                                                     <TableHead>Item Anggaran</TableHead>
-                                                    <TableHead class="w-28 text-right">Volume</TableHead>
+                                                    <TableHead class="w-40 text-right">Pengali Volume</TableHead>
                                                     <TableHead class="w-40">Satuan</TableHead>
                                                     <TableHead class="w-44 text-right">Biaya Diajukan</TableHead>
                                                     <TableHead class="w-44 text-right">Total Biaya</TableHead>
@@ -500,7 +537,7 @@ onMounted(() => {
                                                         {{ itemIndex + 1 }}
                                                     </TableCell>
                                                     <TableCell>{{ item.description || '-' }}</TableCell>
-                                                    <TableCell class="text-right">{{ Number(item.quantity).toFixed(0) }}</TableCell>
+                                                    <TableCell class="text-right">{{ formatFormula(item) }}</TableCell>
                                                     <TableCell>{{ item.unit_measure_name || '-' }}</TableCell>
                                                     <TableCell class="text-right">
                                                         Rp {{ formatCurrency(item.unit_price) }}

@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { useDebounceFn } from '@vueuse/core';
-import axios from 'axios';
 import { computed, onMounted, ref, watch } from 'vue';
+
+import { getCachedList } from '@/lib/selectCache';
+import type { ActivityItem } from '@/types/datamaster';
 
 import {
     Select,
@@ -24,6 +26,8 @@ const props = withDefaults(
         id?: string;
         searchable?: boolean;
         apiUrl?: string;
+        unitId?: number | null;
+        additionalParams?: Record<string, any>;
     }>(),
     {
         placeholder: 'Pilih Activity Item',
@@ -31,12 +35,16 @@ const props = withDefaults(
         error: false,
         searchable: false,
         apiUrl: '/api/v1/select/activity-items',
+        unitId: null,
+        additionalParams: () => ({}),
     },
 );
 
 const emit = defineEmits<{
     (e: 'update:modelValue', value: number | null): void;
-    (e: 'select', value: ActivityItemData | null): void;
+    // Kirim objek master item lengkap (ActivityItem), bukan hanya {id, name, code},
+    // supaya consumer bisa mengisi description/item_name/trans_type dll.
+    (e: 'select', value: ActivityItem | null): void;
 }>();
 
 // =============================================================================
@@ -47,6 +55,11 @@ interface ActivityItemData {
     id: number;
     item_code: string;
     item_name: string;
+    trans_type_id?: number | null;
+    unit_measure_id?: number | null;
+    estimation_price?: number;
+    trans_type?: { id?: number; code?: string; name: string; group_code: string } | null;
+    unit_measure?: { id?: number; code?: string; name: string } | null;
 }
 
 // =============================================================================
@@ -75,8 +88,8 @@ const filteredItems = computed<ActivityItemData[]>(() => {
         const query = searchQuery.value.toLowerCase();
         filtered = filtered.filter(
             (item) =>
-                (item.item_code?.toLowerCase().includes(query) ||
-                item.item_name?.toLowerCase().includes(query)),
+                item.item_code?.toLowerCase().includes(query) ||
+                item.item_name?.toLowerCase().includes(query),
         );
     }
 
@@ -94,34 +107,37 @@ const isDisabled = computed<boolean>(
     () => props.disabled || isLoading.value || hasError.value,
 );
 
+const apiParams = computed(() => {
+    const params: Record<string, any> = { ...props.additionalParams };
+    
+    if (props.unitId) {
+        params.unit_id = props.unitId;
+    }
+    
+    return params;
+});
+
 // =============================================================================
 // METHODS
 // =============================================================================
 
-const fetchActivityItems = async (): Promise<void> => {
+const fetchActivityItems = async (force = false): Promise<void> => {
     if (isLoading.value) return;
 
     isLoading.value = true;
     hasError.value = false;
 
     try {
-        const response = await axios.get(props.apiUrl);
-        
-        let data = response.data;
-        
-        if (data.data && Array.isArray(data.data)) {
-            activityItems.value = data.data;
-        } 
-        else if (Array.isArray(data)) {
-            activityItems.value = data;
-        }
-        else {
-            activityItems.value = [];
-            console.warn('Unexpected API response structure:', data);
-        }
+        // getCachedList: pakai cache in-memory per (apiUrl + params) selama TTL,
+        // dan dedupe request yang sama sedang berjalan antar instance.
+        // DB hanya di-hit saat cache kosong/kedaluwarsa (default TTL 5 menit).
+        activityItems.value = await getCachedList<ActivityItemData>(
+            props.apiUrl,
+            apiParams.value,
+            { force },
+        );
 
         console.log('Activity items loaded:', activityItems.value.length);
-        
     } catch (error) {
         console.error('Failed to load activity items:', error);
         activityItems.value = [];
@@ -134,12 +150,21 @@ const fetchActivityItems = async (): Promise<void> => {
 const handleValueChange = (value: string): void => {
     const newValue = value ? Number(value) : null;
     emit('update:modelValue', newValue);
-    
-    // Emit selected activity item data
+
+    // Emit selected activity item data (objek master lengkap)
     if (newValue) {
         const selected = activityItems.value.find(item => item.id === newValue);
         if (selected) {
-            emit('select', selected);
+            emit('select', {
+                id: selected.id,
+                item_code: selected.item_code || '',
+                item_name: selected.item_name || '',
+                trans_type_id: selected.trans_type_id ?? null,
+                unit_measure_id: selected.unit_measure_id ?? null,
+                estimation_price: Number(selected.estimation_price) || 0,
+                trans_type: selected.trans_type ?? undefined,
+                unit_measure: selected.unit_measure ?? undefined,
+            });
         }
     } else {
         emit('select', null);
@@ -164,19 +189,49 @@ const handleOpenChange = (isOpen: boolean) => {
 };
 
 // =============================================================================
+// WATCHERS
+// =============================================================================
+
+// Watch for unitId changes to reload activity items
+watch(
+    () => props.unitId,
+    (newUnitId, oldUnitId) => {
+        if (newUnitId !== oldUnitId) {
+            // Reset selected value when unit changes
+            emit('update:modelValue', null);
+            emit('select', null);
+            fetchActivityItems();
+        }
+    }
+);
+
+// Watch for additionalParams changes
+watch(
+    () => props.additionalParams,
+    (newParams, oldParams) => {
+        const newParamsStr = JSON.stringify(newParams);
+        const oldParamsStr = JSON.stringify(oldParams);
+        
+        if (newParamsStr !== oldParamsStr) {
+            fetchActivityItems();
+        }
+    },
+    { deep: true }
+);
+
+// =============================================================================
 // LIFECYCLE
 // =============================================================================
 
 onMounted(() => fetchActivityItems());
 
-// Refresh when API URL changes
-watch(() => props.apiUrl, () => {
-    fetchActivityItems();
-});
-
 defineExpose({
-    refresh: fetchActivityItems,
-    reset: () => emit('update:modelValue', null),
+    // refresh() melewati cache (force) supaya data benar-benar baru dari server.
+    refresh: () => fetchActivityItems(true),
+    reset: () => {
+        emit('update:modelValue', null);
+        emit('select', null);
+    },
 });
 </script>
 
@@ -239,7 +294,9 @@ defineExpose({
                             ? `Tidak ada activity item "${searchQuery}"`
                             : activityItems.length
                               ? 'Tidak ada activity item yang sesuai'
-                              : 'Tidak ada data activity item'
+                              : unitId
+                                ? 'Tidak ada activity item untuk unit ini'
+                                : 'Tidak ada data activity item'
                     }}
                 </div>
             </div>
@@ -250,15 +307,14 @@ defineExpose({
                     :key="item.id"
                     :value="item.id.toString()"
                 >
-                    <div class="flex items-center justify-between gap-2 py-1 w-full">
-                        <div class="flex items-center gap-2 flex-1 min-w-0">
-                            <span class="text-sm font-medium truncate">
-                                {{ item.item_name }}
-                            </span>
-                            <span class="text-xs text-muted-foreground flex-shrink-0">
-                                {{ item.item_code }}
-                            </span>
-                        </div>
+                    <div class="flex items-center justify-between w-full py-1">
+                        <span class="text-sm truncate">{{ item.item_name }}</span>
+                        <span 
+                            v-if="item.item_code" 
+                            class="text-xs text-muted-foreground ml-2 flex-shrink-0"
+                        >
+                            {{ item.item_code }}
+                        </span>
                     </div>
                 </SelectItem>
             </div>

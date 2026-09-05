@@ -5,6 +5,7 @@ import { Toaster } from '@/components/ui/sonner'
 import type { BreadcrumbItemType } from '@/types';
 import { ref, onMounted, onUnmounted } from 'vue';
 import { ArrowDown } from 'lucide-vue-next';
+import { useSessionExpiry } from '@/composables/useSessionExpiry';
 
 interface Props {
     breadcrumbs?: BreadcrumbItemType[];
@@ -15,6 +16,9 @@ withDefaults(defineProps<Props>(), {
 });
 
 const showScrollButton = ref(false);
+
+// Countdown & notifikasi session expiry (warning + auto logout saat habis)
+useSessionExpiry();
 
 const checkScrollPosition = () => {
     const scrollTop = window.scrollY || document.documentElement.scrollTop;

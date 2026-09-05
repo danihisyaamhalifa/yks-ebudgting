@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -65,6 +66,27 @@ class HandleInertiaRequests extends Middleware
                 ] : null,
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+
+            // Info sesi untuk countdown & notifikasi session expiry di sisi klien
+            'session_expiry' => function () use ($request) {
+                if (! $request->user()) {
+                    return null;
+                }
+
+                $session = CheckSessionExpiry::sessionRow($request);
+
+                if ($session === null) {
+                    return null;
+                }
+
+                $lifetime = (int) config('session.lifetime') * 60;
+
+                return [
+                    'last_activity' => (int) $session->last_activity,
+                    'lifetime_seconds' => $lifetime,
+                    'remaining_seconds' => max(0, (int) $session->last_activity + $lifetime - time()),
+                ];
+            },
             
             // Sharing flash messages ke Inertia Vue
             'flash' => [

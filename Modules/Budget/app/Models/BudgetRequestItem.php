@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Modules\Budget\Models\BudgetRequestActivity;
+use Modules\Budget\Models\BudgetRequestItemEmployee;
 use Modules\DataMaster\Models\ActivityItem;
 use Modules\DataMaster\Models\ParameterValue;
 use Modules\Disbursement\Models\BudgetDisbursementItem;
@@ -23,6 +24,7 @@ class BudgetRequestItem extends Model
         'volume',
         'unit_price',
         'total_amount',
+        'calculation_mode',
         'notes',
     ];
 
@@ -35,6 +37,7 @@ class BudgetRequestItem extends Model
         'volume' => 'decimal:2',
         'unit_price' => 'decimal:2',
         'total_amount' => 'decimal:2',
+        'calculation_mode' => 'string',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -53,6 +56,16 @@ class BudgetRequestItem extends Model
     public function goods(): HasMany
     {
         return $this->hasMany(BudgetRequestItemGood::class, 'budget_request_item_id');
+    }
+
+    public function employees(): HasMany
+    {
+        return $this->hasMany(BudgetRequestItemEmployee::class, 'budget_request_item_id');
+    }
+
+    public function multipliers(): HasMany
+    {
+        return $this->hasMany(BudgetRequestItemMultiplier::class, 'budget_request_item_id');
     }
 
     public function unitMeasure(): BelongsTo
@@ -84,5 +97,20 @@ class BudgetRequestItem extends Model
     public function getRemainingAmountAttribute(): float
     {
         return (float) $this->total_amount - $this->disbursed_amount;
+    }
+
+    /**
+     * Perkalian seluruh nilai pengali (multiplikasi volume).
+     */
+    public function getMultiplierProductAttribute(): float
+    {
+        if ($this->multipliers->isEmpty()) {
+            return (float) $this->volume;
+        }
+
+        return (float) $this->multipliers->reduce(
+            fn($carry, $multiplier) => $carry * (float) $multiplier->value,
+            1,
+        );
     }
 }

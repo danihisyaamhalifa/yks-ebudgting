@@ -32,7 +32,7 @@ import {
     TrashIcon,
     XCircleIcon,
 } from 'lucide-vue-next';
-import { computed, h, reactive, ref, watch } from 'vue';
+import { computed, h, onMounted, reactive, ref, watch } from 'vue';
 import { toast } from 'vue-sonner';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -158,8 +158,27 @@ const unitForm = reactive({
     bank_name: '',
     bank_account_number: '',
     bank_account_name: '',
+    approval_workflow_id: null as number | null,
     is_active: true,
 });
+
+// Approval workflow headers for the selector
+const headerOptions = ref<
+    { id: number; name: string; description?: string | null }[]
+>([]);
+const isLoadingHeaders = ref(false);
+
+const loadHeaderOptions = async () => {
+    isLoadingHeaders.value = true;
+    try {
+        const response = await axios.get('/api/v1/approval-workflow-headers/select');
+        headerOptions.value = response.data?.data || [];
+    } catch (error) {
+        console.error('Error load headers:', error);
+    } finally {
+        isLoadingHeaders.value = false;
+    }
+};
 
 const unitToDelete = ref<Unit | null>(null);
 
@@ -444,6 +463,7 @@ const resetForm = () => {
         bank_name: '',
         bank_account_number: '',
         bank_account_name: '',
+        approval_workflow_id: null,
         is_active: true,
     });
     resetValidation();
@@ -465,6 +485,7 @@ const updateUnit = (unit: Unit) => {
         bank_name: unit.bank_name || '',
         bank_account_number: unit.bank_account_number || '',
         bank_account_name: unit.bank_account_name || '',
+        approval_workflow_id: unit.approval_workflow_id ?? null,
         is_active: unit.is_active,
     });
 
@@ -571,6 +592,10 @@ const handleCancelEdit = () => {
     resetForm();
     showEditDialog.value = false;
 };
+
+onMounted(() => {
+    loadHeaderOptions();
+});
 </script>
 
 <template>
@@ -726,6 +751,38 @@ const handleCancelEdit = () => {
                         class="text-xs text-red-500"
                     >
                         {{ error }}
+                    </p>
+                </div>
+
+                <!-- Alur Persetujuan -->
+                <div class="space-y-2">
+                    <Label for="create-approval_workflow_id">
+                        Alur Persetujuan
+                    </Label>
+                    <Select
+                        v-model="unitForm.approval_workflow_id"
+                        :disabled="loading"
+                    >
+                        <SelectTrigger
+                            id="create-approval_workflow_id"
+                            class="w-full"
+                        >
+                            <SelectValue placeholder="Pilih approval workflow (opsional)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem :value="null">Tanpa alur</SelectItem>
+                            <SelectItem
+                                v-for="h in headerOptions"
+                                :key="h.id"
+                                :value="h.id"
+                            >
+                                {{ h.name }}
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <p class="text-xs text-muted-foreground">
+                        Workflow yang dipilih menentukan alur persetujuan untuk
+                        unit ini.
                     </p>
                 </div>
 
@@ -972,6 +1029,38 @@ const handleCancelEdit = () => {
                         class="text-xs text-red-500"
                     >
                         {{ error }}
+                    </p>
+                </div>
+
+                <!-- Alur Persetujuan -->
+                <div class="space-y-2">
+                    <Label for="edit-approval_workflow_id">
+                        Alur Persetujuan
+                    </Label>
+                    <Select
+                        v-model="unitForm.approval_workflow_id"
+                        :disabled="loading"
+                    >
+                        <SelectTrigger
+                            id="edit-approval_workflow_id"
+                            class="w-full"
+                        >
+                            <SelectValue placeholder="Pilih approval workflow (opsional)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem :value="null">Tanpa alur</SelectItem>
+                            <SelectItem
+                                v-for="h in headerOptions"
+                                :key="h.id"
+                                :value="h.id"
+                            >
+                                {{ h.name }}
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <p class="text-xs text-muted-foreground">
+                        Workflow yang dipilih menentukan alur persetujuan untuk
+                        unit ini.
                     </p>
                 </div>
 

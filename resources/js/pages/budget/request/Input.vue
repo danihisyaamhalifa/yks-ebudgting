@@ -19,6 +19,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import {
     Table,
     TableBody,
@@ -44,6 +45,7 @@ import {
     AlertCircle,
     AlertTriangle,
     ArrowLeft,
+    Calculator,
     Calendar,
     CalendarDays,
     Check,
@@ -55,7 +57,6 @@ import {
     Info,
     ListChecks,
     Package,
-    Pencil,
     Plus,
     RotateCcw,
     Save,
@@ -64,13 +65,15 @@ import {
     Target,
     Trash2,
     Upload,
+    Users,
     X,
     XCircle,
 } from 'lucide-vue-next';
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { toast } from 'vue-sonner';
 import * as XLSX from 'xlsx';
 import GoodsPanel from '../components/GoodsPanel.vue';
+import MultiplierPanel from '../components/MultiplierPanel.vue';
 
 interface BudgetRequestDetail {
     id: number;
@@ -82,7 +85,10 @@ interface BudgetRequestDetail {
     total_price: number;
     unit_measure_name?: string;
     trans_type_group?: string;
+    calculation_mode: 'simple' | 'detailed';
     goods?: BudgetRequestItemGood[];
+    employees?: BudgetRequestItemEmployee[];
+    multipliers?: BudgetRequestItemMultiplier[];
 }
 
 interface BudgetRequestItemGood {
@@ -98,8 +104,28 @@ interface BudgetRequestItemGood {
     notes: string;
 }
 
+interface BudgetRequestItemMultiplier {
+    id?: number;
+    sequence: number;
+    label: string;
+    value: number;
+}
+
+interface BudgetRequestItemEmployee {
+    id?: number;
+    nik: string;
+    employee_name: string;
+    functional_position: string;
+    teaching_hours: number;
+    class_count: number;
+    rate: number;
+    total: number;
+    notes: string;
+}
+
 interface BudgetActivity {
     id: number;
+    parent_id: number | null;
     activity_id: number;
     description: string;
     start_date: string;
@@ -109,6 +135,7 @@ interface BudgetActivity {
     request_items: BudgetRequestDetail[];
     files: UploadedFile[];
     output_indicator: string;
+    children: BudgetActivity[];
 }
 
 interface BudgetRequestHeader {
@@ -140,12 +167,23 @@ const isBackgroundProcessing = ref(false);
 
 // Goods Panel State (hanya state panel, bukan state goods)
 const showGoodsPanel = ref(false);
-const currentActivityIndex = ref<number>(-1);
+const currentGoodsActivityId = ref<number>(-1);
 const currentItemIndex = ref<number>(-1);
+
+// Employee Panel State (tipe EMPLOYEE — honorarium dosen)
+const showEmployeePanel = ref(false);
+const currentEmployeeActivityId = ref<number>(-1);
+const currentEmployeeItemIndex = ref<number>(-1);
+
+// Multiplier Panel State
+const showMultiplierPanel = ref(false);
+const currentMultiplierActivityId = ref<number>(-1);
+const currentMultiplierItemIndex = ref<number>(-1);
 
 // Upload Excel State
 const cachedActivities = ref<any[]>([]);
 const cachedActivityItems = ref<any[]>([]);
+const cachedEmployees = ref<any[]>([]);
 const cacheLoaded = ref(false);
 const showUploadDialog = ref(false);
 const isUploadDragOver = ref(false);
@@ -235,8 +273,22 @@ const loadSelectCache = async () => {
         cachedActivities.value = a.data?.data || [];
         cachedActivityItems.value = b.data?.data || [];
         cacheLoaded.value = true;
-    } catch (e) {
-        console.error('Gagal memuat cache select:', e);
+    } catch (err) {
+        console.error('Gagal memuat cache select:', err);
+    }
+    await loadEmployeeCache();
+};
+
+// Muat master pegawai (NIK + Nama Dosen) untuk item tipe EMPLOYEE
+const loadEmployeeCache = async () => {
+    if (cachedEmployees.value.length > 0) return;
+    try {
+        const { data } = await axios.get('/api/v1/select/employees', {
+            params: { all: true },
+        });
+        cachedEmployees.value = data?.data || [];
+    } catch (err) {
+        console.error('Gagal memuat cache pegawai:', err);
     }
 };
 
@@ -627,11 +679,15 @@ const confirmUploadToForm = async () => {
                 total_price: it.total_price,
                 unit_measure_name: umn,
                 trans_type_group: ttg,
+                calculation_mode: 'simple',
                 goods: [],
+                employees: [],
+                multipliers: [],
             };
         });
         budgetActivities.value.unshift({
             id: -activityIdCounter++,
+            parent_id: null,
             activity_id: aid,
             description: adesc,
             start_date: ua.start_date || dates.today,
@@ -644,6 +700,7 @@ const confirmUploadToForm = async () => {
             request_items: pItems,
             files: [],
             output_indicator: ua.output_indicator || '',
+            children: [],
         });
         imported++;
     }
@@ -777,7 +834,7 @@ const statusDescription = computed(() => {
     }
 });
 
-// Total budget computed
+// Total budget computed (total seluruh aktivitas top-level)
 const totalBudget = computed(() => {
     const total = budgetActivities.value.reduce((sum, activity) => {
         const amount = parseFloat(String(activity.total_amount)) || 0;
@@ -787,25 +844,67 @@ const totalBudget = computed(() => {
     return total.toFixed(2);
 });
 
+// Baris tampilan kegiatan: parent diikuti child-nya (datar, 2 level)
+const displayRows = computed(() => {
+    const rows: {
+        activity: BudgetActivity;
+        level: number;
+        parent: BudgetActivity | null;
+    }[] = [];
+
+    for (const a of budgetActivities.value) {
+        rows.push({ activity: a, level: 0, parent: null });
+        for (const c of a.children || []) {
+            rows.push({ activity: c, level: 1, parent: a });
+        }
+    }
+
+    return rows;
+});
+
 // Check if item has VENDOR trans_type_group
 const hasVendorType = (item: BudgetRequestDetail): boolean => {
     return item.trans_type_group?.toUpperCase() === 'VENDOR';
 };
 
-// ==================== GOODS PANEL FUNCTIONS (SIMPLIFIED) ====================
+// Check if item has EMPLOYEE trans_type_group,
+// atau deskripsi item dimulai / mengandung teks 'Honorarium Mengajar'
+const hasEmployeeType = (item: BudgetRequestDetail): boolean => {
+    const desc = (item.description || '').toUpperCase();
+    return (
+        item.trans_type_group?.toUpperCase() === 'EMPLOYEE' ||
+        desc.startsWith('HONORARIUM MENGAJAR') ||
+        desc.includes('HONORARIUM MENGAJAR')
+    );
+};
+
+// ==================== PANEL FUNCTIONS (GOODS & MULTIPLIER) ====================
+
+// Cari aktivitas (top-level atau child) berdasarkan id
+const findActivityById = (activityId: number): BudgetActivity | null => {
+    for (const a of budgetActivities.value) {
+        if (a.id === activityId) return a;
+        const child = (a.children || []).find((c) => c.id === activityId);
+        if (child) return child;
+    }
+    return null;
+};
 
 // Toggle goods panel for a specific item
-const toggleGoodsPanel = (activityIndex: number, itemIndex: number) => {
+const toggleGoodsPanel = (activity: BudgetActivity, itemIndex: number) => {
     if (
         showGoodsPanel.value &&
-        currentActivityIndex.value === activityIndex &&
+        currentGoodsActivityId.value === activity.id &&
         currentItemIndex.value === itemIndex
     ) {
         closeGoodsPanel();
         return;
     }
 
-    currentActivityIndex.value = activityIndex;
+    closeMultiplierPanel();
+    closeEmployeePanel();
+
+    currentGoodsActivityId.value = activity.id;
     currentItemIndex.value = itemIndex;
     showGoodsPanel.value = true;
 };
@@ -813,17 +912,16 @@ const toggleGoodsPanel = (activityIndex: number, itemIndex: number) => {
 // Close goods panel
 const closeGoodsPanel = () => {
     showGoodsPanel.value = false;
-    currentActivityIndex.value = -1;
+    currentGoodsActivityId.value = -1;
     currentItemIndex.value = -1;
 };
 
 // Update item goods from GoodsPanel
 const updateItemGoods = (
-    activityIndex: number,
+    activity: BudgetActivity,
     itemIndex: number,
     goods: BudgetRequestItemGood[],
 ) => {
-    const activity = budgetActivities.value[activityIndex];
     const item = activity.request_items[itemIndex];
 
     item.goods = goods;
@@ -839,62 +937,673 @@ const updateItemGoods = (
 
 // ==================== END GOODS PANEL FUNCTIONS ====================
 
+// ==================== EMPLOYEE PANEL FUNCTIONS (tipe EMPLOYEE) ====================
+
+// Toggle employee panel for a specific item
+const toggleEmployeePanel = (activity: BudgetActivity, itemIndex: number) => {
+    if (
+        showEmployeePanel.value &&
+        currentEmployeeActivityId.value === activity.id &&
+        currentEmployeeItemIndex.value === itemIndex
+    ) {
+        closeEmployeePanel();
+        return;
+    }
+
+    closeGoodsPanel();
+    closeMultiplierPanel();
+
+    if (cachedEmployees.value.length === 0) {
+        loadEmployeeCache();
+    }
+
+    currentEmployeeActivityId.value = activity.id;
+    currentEmployeeItemIndex.value = itemIndex;
+    showEmployeePanel.value = true;
+};
+
+// Close employee panel
+const closeEmployeePanel = () => {
+    showEmployeePanel.value = false;
+    currentEmployeeActivityId.value = -1;
+    currentEmployeeItemIndex.value = -1;
+};
+
+// Hitung ulang total satu baris dosen: total = jam mengajar × kelas × tarif
+const recalcEmployeeRow = (emp: BudgetRequestItemEmployee) => {
+    emp.total =
+        (Number(emp.teaching_hours) || 0) *
+        (Number(emp.class_count) || 0) *
+        (Number(emp.rate) || 0);
+};
+
+const debouncedRecalcEmployeeItem = debounce(
+    (activityId: number, itemId: number) => {
+        const activity = findActivityById(activityId);
+        const item = activity?.request_items.find((i) => i.id === itemId);
+        if (item && item.employees) {
+            for (const emp of item.employees) recalcEmployeeRow(emp);
+        }
+        calculateActivityItemTotal(activityId, itemId);
+    },
+    300,
+);
+
+// Tambah baris dosen baru; bila diberi pegawai dari master, NIK & Nama terisi otomatis
+const addEmployeeRow = (
+    activity: BudgetActivity,
+    item: BudgetRequestDetail,
+    employee?: any,
+) => {
+    if (!item.employees) item.employees = [];
+    item.employees.push({
+        nik: employee?.nik || '',
+        employee_name: employee?.name || employee?.employee_name || '',
+        functional_position: '',
+        teaching_hours: 0,
+        class_count: 1,
+        rate: 0,
+        total: 0,
+        notes: '',
+    });
+    calculateActivityItemTotal(activity.id, item.id);
+};
+
+// Tambah baris dosen dari master pegawai (via dropdown panel)
+const handleAddEmployeeFromMaster = (
+    activity: BudgetActivity,
+    item: BudgetRequestDetail,
+    value: string,
+) => {
+    const employee = cachedEmployees.value.find(
+        (e) => String(e.id) === String(value),
+    );
+    if (employee) {
+        addEmployeeRow(activity, item, employee);
+    }
+};
+
+// Handle input tarif (hanya angka, format ribuan)
+const handleEmployeeRate = (
+    event: Event,
+    activityId: number,
+    itemId: number,
+    eIndex: number,
+) => {
+    const target = event.target as HTMLInputElement;
+    const rawValue = target.value.replace(/\D/g, '');
+    const activity = findActivityById(activityId);
+    const item = activity?.request_items.find((i) => i.id === itemId);
+    const emp = item?.employees?.[eIndex];
+    if (emp) {
+        emp.rate = Number(rawValue) || 0;
+        debouncedRecalcEmployeeItem(activityId, itemId);
+    }
+};
+
+// Hapus baris dosen
+const removeEmployeeRow = (
+    activity: BudgetActivity,
+    item: BudgetRequestDetail,
+    eIndex: number,
+) => {
+    if (confirm('Apakah Anda yakin ingin menghapus baris dosen ini?')) {
+        item.employees?.splice(eIndex, 1);
+        calculateActivityItemTotal(activity.id, item.id);
+    }
+};
+
+// ==================== UPLOAD EXCEL DOSEN (fitur seperti upload barang VENDOR) ====================
+
+const employeeUploadFile = ref<{ name: string; size: number } | null>(null);
+const isEmployeeDragOver = ref(false);
+
+const clearEmployeeUploadFile = () => {
+    employeeUploadFile.value = null;
+};
+
+// Unduh template Excel baris dosen
+const downloadEmployeeTemplate = () => {
+    try {
+        const wb = XLSX.utils.book_new();
+
+        const headers = [
+            'NIK',
+            'Nama Dosen',
+            'Jabatan Fungsional',
+            'Jumlah Jam Mengajar',
+            'Jumlah Kelas',
+            'Tarif',
+            'Keterangan',
+        ];
+
+        const sampleData = [
+            [
+                '1234567890',
+                'Dr. Andi',
+                'Lektor',
+                16,
+                2,
+                150000,
+                'Contoh: 16 jam x 2 kelas x Rp150.000',
+            ],
+            [
+                '0987654321',
+                'Prof. Budi',
+                'Guru Besar',
+                8,
+                1,
+                200000,
+                '',
+            ],
+        ];
+
+        const wsData = [headers, ...sampleData];
+        const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+        ws['!cols'] = [
+            { wch: 16 },
+            { wch: 25 },
+            { wch: 20 },
+            { wch: 20 },
+            { wch: 12 },
+            { wch: 14 },
+            { wch: 40 },
+        ];
+
+        XLSX.utils.book_append_sheet(wb, ws, 'Data Dosen');
+
+        const instructionsData = [
+            ['PETUNJUK PENGISIAN TEMPLATE DOSEN'],
+            [''],
+            ['1. Sheet "Data Dosen" digunakan untuk mengisi data dosen yang akan diimport.'],
+            ['2. Jangan mengubah nama kolom (header) pada baris pertama.'],
+            ['3. Isi data dosen mulai dari baris ke-2.'],
+            ['4. Kolom NIK dan Nama Dosen wajib diisi.'],
+            ['5. Kolom "Tarif" diisi dengan angka tanpa titik/koma (contoh: 150000).'],
+            ['6. Total otomatis dihitung: Jumlah Jam Mengajar x Jumlah Kelas x Tarif.'],
+            ['7. Baris contoh bisa dihapus saat mengisi data sebenarnya.'],
+            ['8. Simpan file dalam format .xlsx atau .csv sebelum diupload.'],
+            [''],
+            ['CONTOH DATA:'],
+            headers,
+            [
+                '1234567890',
+                'Dr. Andi',
+                'Lektor',
+                '16',
+                '2',
+                '150000',
+                'Contoh baris',
+            ],
+        ];
+
+        const wsInstructions = XLSX.utils.aoa_to_sheet(instructionsData);
+        wsInstructions['!cols'] = [{ wch: 90 }];
+
+        XLSX.utils.book_append_sheet(wb, wsInstructions, 'Petunjuk');
+        XLSX.writeFile(wb, 'template_dosen_budget_request.xlsx');
+
+        toast.success('Template Excel dosen berhasil diunduh');
+    } catch (error) {
+        console.error('Error downloading employee template:', error);
+        toast.error('Gagal mengunduh template dosen');
+    }
+};
+
+const handleEmployeeDragOver = (event: DragEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    isEmployeeDragOver.value = true;
+};
+
+const handleEmployeeDragLeave = (event: DragEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    isEmployeeDragOver.value = false;
+};
+
+const handleEmployeeDrop = (
+    event: DragEvent,
+    activity: BudgetActivity,
+    item: BudgetRequestDetail,
+) => {
+    event.preventDefault();
+    event.stopPropagation();
+    isEmployeeDragOver.value = false;
+
+    const files = event.dataTransfer?.files;
+    if (files && files.length > 0) {
+        processEmployeeFile(files[0], activity, item);
+    }
+};
+
+const handleEmployeeFileInputChange = (
+    event: Event,
+    activity: BudgetActivity,
+    item: BudgetRequestDetail,
+) => {
+    const target = event.target as HTMLInputElement;
+    const file = target.files?.[0];
+    if (file) {
+        processEmployeeFile(file, activity, item);
+    }
+    target.value = '';
+};
+
+const processEmployeeFile = (
+    file: File,
+    activity: BudgetActivity,
+    item: BudgetRequestDetail,
+) => {
+    const validExtensions = ['.csv', '.xls', '.xlsx'];
+    const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
+
+    if (!validExtensions.includes(fileExtension)) {
+        toast.warning(
+            'Format file tidak valid. Gunakan file CSV atau Excel (.csv, .xls, .xlsx)',
+        );
+        return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+        toast.warning('Ukuran file maksimal 5MB');
+        return;
+    }
+
+    employeeUploadFile.value = {
+        name: file.name,
+        size: file.size,
+    };
+
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+        try {
+            if (fileExtension === '.csv') {
+                parseEmployeeCSVContent(
+                    String(e.target?.result || ''),
+                    activity,
+                    item,
+                );
+            } else {
+                const data = new Uint8Array(e.target?.result as ArrayBuffer);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json<any[]>(firstSheet, {
+                    header: 1,
+                });
+
+                if (jsonData.length < 2) {
+                    toast.warning('File kosong atau hanya berisi header');
+                    clearEmployeeUploadFile();
+                    return;
+                }
+
+                parseEmployeeExcelRows(jsonData.slice(1), activity, item);
+            }
+        } catch (error) {
+            console.error('Error parsing employee file:', error);
+            toast.error(
+                'Gagal membaca file. Pastikan format file sesuai template.',
+            );
+            clearEmployeeUploadFile();
+        }
+    };
+
+    reader.onerror = () => {
+        toast.error('Gagal membaca file');
+        clearEmployeeUploadFile();
+    };
+
+    if (fileExtension === '.csv') {
+        reader.readAsText(file, 'UTF-8');
+    } else {
+        reader.readAsArrayBuffer(file);
+    }
+};
+
+const parseEmployeeCSVContent = (
+    content: string,
+    activity: BudgetActivity,
+    item: BudgetRequestDetail,
+) => {
+    const cleanContent = content.replace(/^\uFEFF/, '');
+    const lines = cleanContent.split('\n').filter((line) => line.trim());
+
+    if (lines.length < 2) {
+        toast.warning('File kosong atau hanya berisi header');
+        clearEmployeeUploadFile();
+        return;
+    }
+
+    const newEmployees: BudgetRequestItemEmployee[] = [];
+    let errorCount = 0;
+
+    lines.slice(1).forEach((line) => {
+        try {
+            const values = parseCSVLine(line);
+
+            if (values.length < 6) {
+                errorCount++;
+                return;
+            }
+
+            const emp = createEmployeeFromRow(values);
+            if (emp) {
+                newEmployees.push(emp);
+            } else {
+                errorCount++;
+            }
+        } catch (e) {
+            errorCount++;
+        }
+    });
+
+    finalizeEmployeeImport(newEmployees, errorCount, activity, item);
+};
+
+const parseEmployeeExcelRows = (
+    rows: any[][],
+    activity: BudgetActivity,
+    item: BudgetRequestDetail,
+) => {
+    const newEmployees: BudgetRequestItemEmployee[] = [];
+    let errorCount = 0;
+
+    rows.forEach((row) => {
+        try {
+            const values = row.map((val) => {
+                if (val === null || val === undefined) return '';
+                return String(val);
+            });
+
+            if (values.length < 6 || !values[0]?.trim()) {
+                errorCount++;
+                return;
+            }
+
+            const emp = createEmployeeFromRow(values);
+            if (emp) {
+                newEmployees.push(emp);
+            } else {
+                errorCount++;
+            }
+        } catch (e) {
+            errorCount++;
+        }
+    });
+
+    finalizeEmployeeImport(newEmployees, errorCount, activity, item);
+};
+
+const createEmployeeFromRow = (
+    values: string[],
+): BudgetRequestItemEmployee | null => {
+    const nik = values[0]?.trim() || '';
+    const employee_name = values[1]?.trim() || '';
+    const functional_position = values[2]?.trim() || '';
+    const teaching_hours = parseFloat(
+        String(values[3]).replace(/[^\d.]/g, ''),
+    );
+    const class_count = parseInt(
+        String(values[4]).replace(/[^\d]/g, ''),
+        10,
+    );
+    const rate = parseFloat(String(values[5]).replace(/[^\d.]/g, ''));
+
+    if (!nik || !employee_name) return null;
+    if (isNaN(teaching_hours) || teaching_hours < 0) return null;
+    if (isNaN(class_count) || class_count <= 0) return null;
+    if (isNaN(rate) || rate < 0) return null;
+
+    return {
+        nik,
+        employee_name,
+        functional_position,
+        teaching_hours,
+        class_count,
+        rate,
+        total: teaching_hours * class_count * rate,
+        notes: values[6]?.trim() || '',
+    };
+};
+
+const finalizeEmployeeImport = (
+    newEmployees: BudgetRequestItemEmployee[],
+    errorCount: number,
+    activity: BudgetActivity,
+    item: BudgetRequestDetail,
+) => {
+    if (newEmployees.length > 0) {
+        if (!item.employees) item.employees = [];
+        item.employees.push(...newEmployees);
+        calculateActivityItemTotal(activity.id, item.id);
+        toast.success(`${newEmployees.length} dosen berhasil diimport`);
+    }
+
+    if (errorCount > 0) {
+        toast.error(
+            `${errorCount} baris gagal diimport karena format tidak valid`,
+        );
+    }
+
+    if (newEmployees.length === 0 && errorCount === 0) {
+        toast.error('Tidak ada data yang berhasil diimport');
+    }
+
+    clearEmployeeUploadFile();
+};
+
+// Parse satu baris CSV dengan dukungan tanda kutip
+const parseCSVLine = (line: string): string[] => {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+
+        if (inQuotes) {
+            if (char === '"') {
+                if (i + 1 < line.length && line[i + 1] === '"') {
+                    current += '"';
+                    i++;
+                } else {
+                    inQuotes = false;
+                }
+            } else {
+                current += char;
+            }
+        } else {
+            if (char === '"') {
+                inQuotes = true;
+            } else if (char === ',') {
+                result.push(current);
+                current = '';
+            } else {
+                current += char;
+            }
+        }
+    }
+
+    result.push(current);
+    return result;
+};
+
+// ==================== END UPLOAD EXCEL DOSEN ====================
+
+// ==================== END EMPLOYEE PANEL FUNCTIONS ====================
+
+// ==================== MULTIPLIER PANEL FUNCTIONS ====================
+
+// Toggle multiplier panel for a specific item
+const toggleMultiplierPanel = (activity: BudgetActivity, itemIndex: number) => {
+    if (
+        showMultiplierPanel.value &&
+        currentMultiplierActivityId.value === activity.id &&
+        currentMultiplierItemIndex.value === itemIndex
+    ) {
+        closeMultiplierPanel();
+        return;
+    }
+
+    closeGoodsPanel();
+    closeEmployeePanel();
+
+    currentMultiplierActivityId.value = activity.id;
+    currentMultiplierItemIndex.value = itemIndex;
+    showMultiplierPanel.value = true;
+};
+
+// Close multiplier panel
+const closeMultiplierPanel = () => {
+    showMultiplierPanel.value = false;
+    currentMultiplierActivityId.value = -1;
+    currentMultiplierItemIndex.value = -1;
+};
+
+// Update item multipliers from MultiplierPanel
+const updateItemMultipliers = (
+    activity: BudgetActivity,
+    itemIndex: number,
+    multipliers: BudgetRequestItemMultiplier[],
+) => {
+    const item = activity.request_items[itemIndex];
+
+    item.multipliers = multipliers;
+
+    calculateActivityItemTotal(activity.id, item.id);
+};
+
+// Toggle mode perhitungan item: simple (jumlah tunggal) vs detailed (pengali)
+const toggleItemMode = (
+    item: BudgetRequestDetail,
+    activityId: number,
+    detailed: boolean,
+) => {
+    item.calculation_mode = detailed ? 'detailed' : 'simple';
+
+    if (detailed) {
+        if (!item.multipliers || item.multipliers.length === 0) {
+            item.multipliers = [
+                {
+                    sequence: 1,
+                    label: item.unit_measure_name || 'Satuan',
+                    value: item.quantity || 1,
+                },
+            ];
+        }
+    } else {
+        item.multipliers = [];
+        closeMultiplierPanel();
+    }
+
+    calculateActivityItemTotal(activityId, item.id);
+};
+
+// ==================== END MULTIPLIER PANEL FUNCTIONS ====================
+
+// Normalisasi multipliers dari response backend.
+// Fallback: jika tidak ada multipliers, pakai volume lama sebagai 1 pengali "Volume".
+const normalizeMultipliers = (detail: any): BudgetRequestItemMultiplier[] => {
+    const ttg = (
+        detail.activity_item?.trans_type?.group_code || ''
+    ).toUpperCase();
+    if (ttg === 'VENDOR' || ttg === 'EMPLOYEE') return [];
+
+    if (Array.isArray(detail.multipliers) && detail.multipliers.length > 0) {
+        return detail.multipliers.map((m: any) => ({
+            id: m.id,
+            sequence: m.sequence || 1,
+            label: m.label || 'Volume',
+            value: parseFloat(m.value) || 0,
+        }));
+    }
+
+    const vol = parseFloat(detail.volume) || 0;
+    return vol > 0 ? [{ sequence: 1, label: 'Volume', value: vol }] : [];
+};
+
+// Map satu item anggaran dari response backend
+const mapRequestItem = (detail: any): BudgetRequestDetail => ({
+    id: detail.id,
+    activity_item_id: detail.activity_item_id,
+    description: detail.description || '',
+    quantity: detail.volume || 0,
+    unit_measure_id: detail.unit_measure_id || 0,
+    unit_measure_name: detail.unit_measure?.name || '',
+    unit_price: detail.unit_price || 0,
+    total_price: detail.total_amount || 0,
+    trans_type_group: detail.activity_item?.trans_type?.group_code || '',
+    calculation_mode:
+        detail.calculation_mode === 'detailed' ? 'detailed' : 'simple',
+    multipliers:
+        detail.calculation_mode === 'detailed'
+            ? normalizeMultipliers(detail)
+            : [],
+    goods:
+        detail.goods?.map((good: any) => ({
+            id: good.id,
+            item_name: good.item_name,
+            goods_type: good.goods_type || 'bhp',
+            specification: good.specification || '',
+            brand: good.brand || '',
+            quantity: good.quantity || 1,
+            unit_measure: good.unit_measure || '',
+            unit_price: parseFloat(good.unit_price) || 0,
+            subtotal: parseFloat(good.subtotal) || 0,
+            notes: good.notes || '',
+        })) || [],
+    employees:
+        detail.employees?.map((emp: any) => ({
+            id: emp.id,
+            nik: emp.nik || '',
+            employee_name: emp.employee_name || '',
+            functional_position: emp.functional_position || '',
+            teaching_hours: parseFloat(emp.teaching_hours) || 0,
+            class_count: parseInt(emp.class_count, 10) || 0,
+            rate: parseFloat(emp.rate) || 0,
+            total: parseFloat(emp.total) || 0,
+            notes: emp.notes || '',
+        })) || [],
+});
+
+// Map satu aktivitas (parent atau child) dari response backend
+const mapActivity = (activity: any): BudgetActivity => ({
+    id: activity.id,
+    parent_id: activity.parent_id || null,
+    activity_id: activity.activity_id,
+    description:
+        activity.activity?.activity_name ||
+        activity.activity_name ||
+        activity.description ||
+        '',
+    start_date: activity.start_date
+        ? String(activity.start_date).split('T')[0]
+        : '',
+    end_date: activity.end_date ? String(activity.end_date).split('T')[0] : '',
+    total_amount: activity.total_amount || 0,
+    showItems: false,
+    request_items: (activity.request_items || []).map(mapRequestItem),
+    files:
+        activity.documents?.map((att: any) => ({
+            id: att.id,
+            name: att.document_name,
+            file: att.file_path,
+            size: att.file_size,
+            type: att.file_type,
+            url: att.file_path,
+            isExisting: true,
+            status: 'success',
+        })) || [],
+    output_indicator: activity.output_indicator || '',
+    children: (activity.children || []).map(mapActivity),
+});
+
 // Transformasi data activities
 const transformActivities = (activitiesData: any[]): BudgetActivity[] => {
-    return activitiesData.map((activity: any) => {
-        return {
-            id: activity.id,
-            activity_id: activity.activity_id,
-            description: activity?.activity_name || activity.description || '',
-            start_date: activity.start_date
-                ? activity.start_date.split('T')[0]
-                : '',
-            end_date: activity.end_date ? activity.end_date.split('T')[0] : '',
-            total_amount: activity.total_amount || 0,
-            showItems: false,
-
-            request_items:
-                activity.request_items?.map((detail: any) => ({
-                    id: detail.id,
-                    activity_item_id: detail.activity_item_id,
-                    description: detail.description || '',
-                    quantity: detail.volume || 0,
-                    unit_measure_id: detail.unit_measure_id || 0,
-                    unit_measure_name: detail.unit_measure?.name || '',
-                    unit_price: detail.unit_price || 0,
-                    total_price: detail.total_amount || 0,
-                    trans_type_group:
-                        detail.activity_item?.trans_type?.group_code || '',
-                    goods:
-                        detail.goods?.map((good: any) => ({
-                            id: good.id,
-                            item_name: good.item_name,
-                            goods_type: good.goods_type || 'bhp',
-                            specification: good.specification || '',
-                            brand: good.brand || '',
-                            quantity: good.quantity || 1,
-                            unit_measure: good.unit_measure || '',
-                            unit_price: parseFloat(good.unit_price) || 0,
-                            subtotal: parseFloat(good.subtotal) || 0,
-                            notes: good.notes || '',
-                        })) || [],
-                })) || [],
-
-            files:
-                activity.documents?.map((att: any) => ({
-                    id: att.id,
-                    name: att.document_name,
-                    file: att.file_path,
-                    size: att.file_size,
-                    type: att.file_type,
-                    url: att.file_path,
-                    isExisting: true,
-                    status: 'success',
-                })) || [],
-
-            output_indicator: activity.output_indicator || '',
-        };
-    });
+    return (activitiesData || []).map(mapActivity);
 };
 
 // Proses background untuk update counters
@@ -903,14 +1612,17 @@ const updateCountersInBackground = () => {
 
     setTimeout(() => {
         try {
-            if (budgetActivities.value.length > 0) {
+            const allActivities = budgetActivities.value.flatMap((a) => [
+                a,
+                ...(a.children || []),
+            ]);
+
+            if (allActivities.length > 0) {
                 activityIdCounter =
-                    Math.max(...budgetActivities.value.map((a) => a.id)) + 1;
+                    Math.max(...allActivities.map((a) => a.id)) + 1;
             }
 
-            const allDetails = budgetActivities.value.flatMap(
-                (a) => a.request_items,
-            );
+            const allDetails = allActivities.flatMap((a) => a.request_items);
             if (allDetails.length > 0) {
                 detailIdCounter =
                     Math.max(...allDetails.map((d) => d.id ?? 0)) + 1;
@@ -990,22 +1702,17 @@ onMounted(async () => {
 });
 
 const updateActivityData = (
-    index: number,
+    activity: BudgetActivity,
     selected: { id: number; name: string; code: string } | null,
 ) => {
-    if (selected) {
-        budgetActivities.value[index].description = selected.name;
-    } else {
-        budgetActivities.value[index].description = '';
-    }
+    activity.description = selected ? selected.name : '';
 };
 
 const updateActivityItem = (
-    activityIndex: number,
+    activity: BudgetActivity,
     itemIndex: number,
     selectedItem: ActivityItem | null,
 ) => {
-    const activity = budgetActivities.value[activityIndex];
     const item = activity.request_items[itemIndex];
 
     if (selectedItem) {
@@ -1016,8 +1723,19 @@ const updateActivityItem = (
         item.unit_measure_name = selectedItem.unit_measure?.name;
         item.trans_type_group = selectedItem.trans_type?.group_code || '';
 
+        item.calculation_mode = 'simple';
+        item.quantity = 1;
+        item.multipliers = [];
+
         if (selectedItem.trans_type?.group_code.toUpperCase() !== 'VENDOR') {
             item.goods = [];
+        }
+        if (selectedItem.trans_type?.group_code.toUpperCase() !== 'EMPLOYEE') {
+            item.employees = [];
+        } else {
+            if (cachedEmployees.value.length === 0) {
+                loadEmployeeCache();
+            }
         }
     } else {
         item.activity_item_id = null;
@@ -1026,53 +1744,120 @@ const updateActivityItem = (
         item.unit_measure_name = '';
         item.unit_price = 0;
         item.trans_type_group = '';
+        item.calculation_mode = 'simple';
+        item.quantity = 1;
         item.goods = [];
+        item.employees = [];
+        item.multipliers = [];
     }
+
+    console.log('item.description...', item.description)
 
     if (
         showGoodsPanel.value &&
-        currentActivityIndex.value === activityIndex &&
+        currentGoodsActivityId.value === activity.id &&
         currentItemIndex.value === itemIndex
     ) {
         closeGoodsPanel();
     }
 
+    if (
+        showEmployeePanel.value &&
+        currentEmployeeActivityId.value === activity.id &&
+        currentEmployeeItemIndex.value === itemIndex
+    ) {
+        closeEmployeePanel();
+    }
+
+    if (
+        showMultiplierPanel.value &&
+        currentMultiplierActivityId.value === activity.id &&
+        currentMultiplierItemIndex.value === itemIndex
+    ) {
+        closeMultiplierPanel();
+    }
+
     debouncedCalculateItemTotal(activity.id, item.id);
 };
 
-// Add new activity
-const addNewActivity = () => {
+// Tutup semua rincian (item) kegiatan — parent maupun child
+const closeAllActivityDetails = () => {
+    for (const a of budgetActivities.value) {
+        a.showItems = false;
+        for (const c of a.children || []) {
+            c.showItems = false;
+        }
+    }
+};
+
+// Buat objek aktivitas baru
+const createActivityObject = (parentId: number | null): BudgetActivity => {
     const dates = formatDateForActivityInput();
-    budgetActivities.value.unshift({
+    return {
         id: -activityIdCounter++,
+        parent_id: parentId,
         activity_id: 0,
         description: '',
         start_date: dates.today,
         end_date: dates.nextWeek,
         total_amount: 0,
-        showItems: true,
+        showItems: false,
         request_items: [],
         files: [],
         output_indicator: '',
-    });
+        children: [],
+    };
 };
 
-// Remove activity
-const removeActivity = (index: number) => {
-    if (confirm('Apakah Anda yakin ingin menghapus kegiatan ini?')) {
-        budgetActivities.value.splice(index, 1);
+// Add new activity (top-level)
+const addNewActivity = () => {
+    closeAllActivityDetails();
+    budgetActivities.value.unshift(createActivityObject(null));
+};
+
+// Add child activity di bawah parent
+const addChildActivity = (parent: BudgetActivity) => {
+    if (parent.request_items.length > 0) {
+        toast.info(
+            `Kegiatan "${parent.description || 'Belum diberi nama'}" sudah memiliki item. Hapus item terlebih dahulu untuk menjadikannya grouping (parent).`,
+        );
+        return;
+    }
+
+    closeAllActivityDetails();
+    parent.children.push(createActivityObject(parent.id));
+    calculateActivityTotal(parent.id);
+};
+
+// Remove activity (top-level atau child)
+const removeActivity = (activity: BudgetActivity) => {
+    if (!confirm('Apakah Anda yakin ingin menghapus kegiatan ini?')) return;
+
+    if (activity.parent_id) {
+        const parent = findActivityById(activity.parent_id);
+        if (parent) {
+            const i = parent.children.findIndex((c) => c.id === activity.id);
+            if (i >= 0) {
+                parent.children.splice(i, 1);
+                calculateActivityTotal(parent.id);
+            }
+        }
+    } else {
+        const i = budgetActivities.value.findIndex((a) => a.id === activity.id);
+        if (i >= 0) {
+            budgetActivities.value.splice(i, 1);
+        }
     }
 };
 
 // Toggle activity detail
-const toggleActivityDetail = (index: number) => {
-    budgetActivities.value[index].showItems =
-        !budgetActivities.value[index].showItems;
+const toggleActivityDetail = (activity: BudgetActivity) => {
+    activity.showItems = !activity.showItems;
 };
 
 // Add new activity item
-const addNewActivityItem = (activityIndex: number) => {
-    budgetActivities.value[activityIndex].request_items.push({
+const addNewActivityItem = (activity: BudgetActivity) => {
+    activity.request_items.push({
         id: -detailIdCounter++,
         activity_item_id: null,
         description: '',
@@ -1081,27 +1866,43 @@ const addNewActivityItem = (activityIndex: number) => {
         unit_price: 0,
         total_price: 0,
         trans_type_group: '',
+        calculation_mode: 'simple',
         goods: [],
+        employees: [],
+        multipliers: [],
     });
-    calculateActivityTotal(budgetActivities.value[activityIndex].id);
+    calculateActivityTotal(activity.id);
 };
 
 // Remove activity item
-const removeActivityItem = (activityIndex: number, itemIndex: number) => {
+const removeActivityItem = (activity: BudgetActivity, itemIndex: number) => {
     if (confirm('Apakah Anda yakin ingin menghapus item ini?')) {
         if (
             showGoodsPanel.value &&
-            currentActivityIndex.value === activityIndex &&
+            currentGoodsActivityId.value === activity.id &&
             currentItemIndex.value === itemIndex
         ) {
             closeGoodsPanel();
         }
 
-        budgetActivities.value[activityIndex].request_items.splice(
-            itemIndex,
-            1,
-        );
-        calculateActivityTotal(budgetActivities.value[activityIndex].id);
+        if (
+            showEmployeePanel.value &&
+            currentEmployeeActivityId.value === activity.id &&
+            currentEmployeeItemIndex.value === itemIndex
+        ) {
+            closeEmployeePanel();
+        }
+
+        if (
+            showMultiplierPanel.value &&
+            currentMultiplierActivityId.value === activity.id &&
+            currentMultiplierItemIndex.value === itemIndex
+        ) {
+            closeMultiplierPanel();
+        }
+
+        activity.request_items.splice(itemIndex, 1);
+        calculateActivityTotal(activity.id);
     }
 };
 
@@ -1133,9 +1934,31 @@ const formatPrice = (value: string | number): string => {
     return Number(cleanNum).toLocaleString('id-ID');
 };
 
+// ==================== MULTIPLIER DISPLAY ====================
+
+const formatFormula = (item: BudgetRequestDetail): string => {
+    if (hasVendorType(item)) {
+        const goodsCount = (item.goods || []).length;
+        return goodsCount ? `${goodsCount} barang` : '-';
+    }
+
+    if (hasEmployeeType(item)) {
+        const empCount = (item.employees || []).length;
+        return empCount ? `${empCount} dosen` : '-';
+    }
+
+    const parts = (item.multipliers || [])
+        .filter((m) => (Number(m.value) || 0) > 0)
+        .map(
+            (m) =>
+                `${Number(m.value).toLocaleString('id-ID')}${m.label ? ' ' + m.label : ''}`,
+        );
+    return parts.length ? parts.join(' × ') : '-';
+};
+
 // Calculate activity item total
 const calculateActivityItemTotal = (activityId: number, itemId: number) => {
-    const activity = budgetActivities.value.find((a) => a.id === activityId);
+    const activity = findActivityById(activityId);
     if (activity) {
         const item = activity.request_items.find((i) => i.id === itemId);
         if (item) {
@@ -1144,27 +1967,60 @@ const calculateActivityItemTotal = (activityId: number, itemId: number) => {
                     (sum, good) => sum + (good.subtotal || 0),
                     0,
                 );
+            } else if (item.employees && item.employees.length > 0) {
+                item.total_price = item.employees.reduce(
+                    (sum, emp) => sum + (Number(emp.total) || 0),
+                    0,
+                );
             } else {
-                const quantity = parseFloat(item.quantity.toString()) || 0;
-                const unitPrice = parseFloat(item.unit_price.toString()) || 0;
-                item.total_price = quantity * unitPrice;
+                const unitPrice = parseFloat(item?.unit_price?.toString()) || 0;
+                let product = 1;
+
+                if (
+                    item.calculation_mode === 'detailed' &&
+                    (item.multipliers || []).length > 0
+                ) {
+                    product = (item.multipliers || []).reduce(
+                        (p, m) => p * (parseFloat(String(m.value)) || 0),
+                        1,
+                    );
+                } else {
+                    product = parseFloat(item.quantity.toString()) || 0;
+                }
+
+                item.total_price = product * unitPrice;
             }
             calculateActivityTotal(activityId);
         }
     }
 };
 
-// Calculate activity total
+// Calculate activity total (parent = jumlah child, leaf = jumlah item)
 const calculateActivityTotal = (activityId: number) => {
-    const activity = budgetActivities.value.find((a) => a.id === activityId);
-    if (activity) {
+    const activity = findActivityById(activityId);
+    if (!activity) return 0;
+
+    if (activity.children.length > 0) {
+        activity.total_amount = activity.children.reduce(
+            (sum, child) => sum + (Number(child.total_amount) || 0),
+            0,
+        );
+    } else {
         activity.total_amount = activity.request_items.reduce((sum, item) => {
             const price = Number(item.total_price) || 0;
             return sum + price;
         }, 0);
-        return activity.total_amount;
     }
-    return 0;
+
+    // Propagate ke parent bila ada
+    if (activity.parent_id) {
+        const parent = findActivityById(activity.parent_id);
+        if (parent) {
+            calculateActivityTotal(parent.id);
+        }
+    }
+
+    return activity.total_amount;
 };
 
 // File upload handlers
@@ -1201,66 +2057,107 @@ const buildFormData = () => {
     fd.append('notes', formData.value.description ?? '');
     fd.append('total_amount', String(totalBudget.value));
 
-    const structuredActivities = budgetActivities.value.map(
-        (activity, aIndex) => {
-            const items =
-                activity.request_items?.map((item) => {
-                    const validGoods =
-                        item.goods
-                            ?.filter(
-                                (g) =>
-                                    g &&
-                                    g.item_name &&
-                                    g.item_name.trim() !== '',
-                            )
-                            .map((g) => ({
-                                id: g.id && g.id > 0 ? g.id : null,
-                                item_name: g.item_name,
-                                goods_type: g.goods_type || 'bhp',
-                                specification: g.specification || '',
-                                brand: g.brand || '',
-                                quantity: g.quantity || 1,
-                                unit_measure: g.unit_measure || '',
-                                unit_price: g.unit_price || 0,
-                                subtotal:
-                                    g.subtotal || g.quantity * g.unit_price,
-                                notes: g.notes || '',
-                            })) || [];
+    const serializeItem = (item: BudgetRequestDetail) => {
+        const validGoods =
+            item.goods
+                ?.filter(
+                    (g) => g && g.item_name && g.item_name.trim() !== '',
+                )
+                .map((g) => ({
+                    id: g.id && g.id > 0 ? g.id : null,
+                    item_name: g.item_name,
+                    goods_type: g.goods_type || 'bhp',
+                    specification: g.specification || '',
+                    brand: g.brand || '',
+                    quantity: g.quantity || 1,
+                    unit_measure: g.unit_measure || '',
+                    unit_price: g.unit_price || 0,
+                    subtotal: g.subtotal || g.quantity * g.unit_price,
+                    notes: g.notes || '',
+                })) || [];
 
-                    return {
-                        id: item.id && item.id > 0 ? item.id : null,
-                        activity_item_id: item.activity_item_id,
-                        description: item.description,
-                        volume: item.quantity,
-                        unit_measure_id: item.unit_measure_id,
-                        unit_price: item.unit_price,
-                        total_amount: item.total_price,
-                        goods: validGoods,
-                    };
-                }) || [];
+        const validEmployees =
+            item.employees
+                ?.filter(
+                    (e) =>
+                        e &&
+                        e.nik &&
+                        String(e.nik).trim() !== '' &&
+                        e.employee_name &&
+                        String(e.employee_name).trim() !== '',
+                )
+                .map((e) => ({
+                    id: e.id && e.id > 0 ? e.id : null,
+                    nik: e.nik,
+                    employee_name: e.employee_name,
+                    functional_position: e.functional_position || '',
+                    teaching_hours: Number(e.teaching_hours) || 0,
+                    class_count: Number(e.class_count) || 1,
+                    rate: Number(e.rate) || 0,
+                    total:
+                        Number(e.total) ||
+                        (Number(e.teaching_hours) || 0) *
+                            (Number(e.class_count) || 1) *
+                            (Number(e.rate) || 0),
+                    notes: e.notes || '',
+                })) || [];
 
-            const documents =
-                activity.files?.map((file, fIndex) => {
-                    if (!file.isExisting) {
-                        fd.append(
-                            `activity_files[${aIndex}][${fIndex}]`,
-                            file.file,
-                            file.name,
-                        );
-                    }
+        const isDetailed = item.calculation_mode === 'detailed';
 
-                    return {
-                        id: file.isExisting ? file.id : null,
-                        document_name: file.name,
-                        file_name: file.name,
-                        isExisting: file.isExisting,
-                        file_path: file.isExisting ? (file.url ?? '') : '',
-                        file_size: file.size ?? 0,
-                        file_type: file.type ?? '',
-                    };
-                }) || [];
+        const validMultipliers = isDetailed
+            ? (item.multipliers || [])
+                  .filter((m) => m && (Number(m.value) || 0) > 0)
+                  .map((m) => ({
+                      id: m.id && m.id > 0 ? m.id : null,
+                      sequence: m.sequence || 1,
+                      label: m.label || 'Volume',
+                      value: m.value,
+                  }))
+            : [];
+
+        const multiplierProduct = (item.multipliers || []).reduce(
+            (p, m) => p * (Number(m.value) || 0),
+            1,
+        );
+
+        return {
+            id: item.id && item.id > 0 ? item.id : null,
+            activity_item_id: item.activity_item_id,
+            description: item.description,
+            volume: isDetailed ? multiplierProduct : item.quantity,
+            unit_measure_id: item.unit_measure_id,
+            unit_price: item.unit_price,
+            total_amount: item.total_price,
+            calculation_mode: isDetailed ? 'detailed' : 'simple',
+            goods: validGoods,
+            employees: validEmployees,
+            multipliers: validMultipliers,
+        };
+    };
+
+    const serializeDocuments = (
+        files: UploadedFile[] | undefined,
+        fileKey: (fIndex: number) => string,
+    ) =>
+        files?.map((file, fIndex) => {
+            if (!file.isExisting) {
+                fd.append(fileKey(fIndex), file.file, file.name);
+            }
 
             return {
+                id: file.isExisting ? file.id : null,
+                document_name: file.name,
+                file_name: file.name,
+                isExisting: file.isExisting,
+                file_path: file.isExisting ? (file.url ?? '') : '',
+                file_size: file.size ?? 0,
+                file_type: file.type ?? '',
+            };
+        }) || [];
+
+    const structuredActivities = budgetActivities.value.map(
+        (activity, aIndex) => {
+            const base = {
                 id: activity.id && activity.id > 0 ? activity.id : null,
                 activity_id: activity.activity_id,
                 description: activity.description ?? '',
@@ -1268,8 +2165,40 @@ const buildFormData = () => {
                 end_date: activity.end_date ?? '',
                 total_amount: activity.total_amount,
                 output_indicator: activity.output_indicator ?? '',
-                documents: documents,
-                request_items: items,
+            };
+
+            if ((activity.children || []).length > 0) {
+                // PARENT: hanya wadah/grouping, tanpa item & dokumen
+                return {
+                    ...base,
+                    children: activity.children.map((child, cIndex) => ({
+                        id: child.id && child.id > 0 ? child.id : null,
+                        activity_id: child.activity_id,
+                        description: child.description ?? '',
+                        start_date: child.start_date ?? '',
+                        end_date: child.end_date ?? '',
+                        total_amount: child.total_amount,
+                        output_indicator: child.output_indicator ?? '',
+                        request_items: (child.request_items || []).map(
+                            serializeItem,
+                        ),
+                        documents: serializeDocuments(
+                            child.files,
+                            (fIndex) =>
+                                `child_files[${aIndex}][${cIndex}][${fIndex}]`,
+                        ),
+                    })),
+                };
+            }
+
+            // LEAF: punya item & dokumen
+            return {
+                ...base,
+                request_items: (activity.request_items || []).map(serializeItem),
+                documents: serializeDocuments(
+                    activity.files,
+                    (fIndex) => `activity_files[${aIndex}][${fIndex}]`,
+                ),
             };
         },
     );
@@ -1288,6 +2217,10 @@ const saveAsDraft = async () => {
 
     if (showGoodsPanel.value) {
         closeGoodsPanel();
+    }
+
+    if (showMultiplierPanel.value) {
+        closeMultiplierPanel();
     }
 
     isPosting.value = true;
@@ -1343,6 +2276,10 @@ const submitForm = async () => {
         closeGoodsPanel();
     }
 
+    if (showMultiplierPanel.value) {
+        closeMultiplierPanel();
+    }
+
     isPosting.value = true;
 
     try {
@@ -1390,7 +2327,8 @@ const submitForm = async () => {
     } catch (error: any) {
         console.error(error);
         toast.error(
-            error.response?.data?.message ??
+            error.response?.data?.error ||
+                error.response?.data?.message ||
                 'Gagal submit perencanaan anggaran',
         );
     } finally {
@@ -1454,6 +2392,7 @@ const resetForm = () => {
         activityIdCounter = 1;
         detailIdCounter = 1;
         closeGoodsPanel();
+        closeMultiplierPanel();
     }
 };
 
@@ -1492,7 +2431,8 @@ const validateForm = () => {
         return false;
     }
 
-    for (const activity of budgetActivities.value) {
+    // Validasi field dasar sebuah aktivitas (child/leaf)
+    const validateActivityBasic = (activity: BudgetActivity): boolean => {
         if (!activity.activity_id) {
             toast.info('Kode kegiatan harus dipilih!');
             return false;
@@ -1519,6 +2459,11 @@ const validateForm = () => {
             return false;
         }
 
+        return true;
+    };
+
+    // Validasi item sebuah aktivitas
+    const validateActivityItems = (activity: BudgetActivity): boolean => {
         if (activity.request_items.length === 0) {
             toast.info(
                 `Kegiatan "${activity.description || 'Belum diberi nama'}" harus memiliki minimal satu item!`,
@@ -1537,18 +2482,95 @@ const validateForm = () => {
                 return false;
             }
 
-            if ((item.quantity || 0) <= 0 && !hasVendorType(item)) {
-                toast.info('Volume item harus lebih dari 0!');
+            if (
+                hasEmployeeType(item) &&
+                (!item.employees || item.employees.length === 0)
+            ) {
+                toast.info(
+                    `Item "${item.description || 'Belum diberi nama'}" bertipe EMPLOYEE harus memiliki minimal satu dosen!`,
+                );
                 return false;
+            }
+
+            for (const emp of item.employees || []) {
+                if (!emp.nik || !String(emp.nik).trim()) {
+                    toast.info(
+                        `NIK dosen pada item "${item.description || 'Belum diberi nama'}" harus diisi!`,
+                    );
+                    return false;
+                }
+                if (!emp.employee_name || !String(emp.employee_name).trim()) {
+                    toast.info(
+                        `Nama dosen pada item "${item.description || 'Belum diberi nama'}" harus diisi!`,
+                    );
+                    return false;
+                }
+                if ((Number(emp.rate) || 0) <= 0) {
+                    toast.info(
+                        `Tarif dosen pada item "${item.description || 'Belum diberi nama'}" harus lebih dari 0!`,
+                    );
+                    return false;
+                }
+            }
+
+            if (!hasVendorType(item) && !hasEmployeeType(item)) {
+                if (item.calculation_mode === 'detailed') {
+                    const hasValidMultiplier = (item.multipliers || []).some(
+                        (m) => (Number(m.value) || 0) > 0,
+                    );
+                    if (!hasValidMultiplier) {
+                        toast.info(
+                            `Item "${item.description || 'Belum diberi nama'}" harus memiliki minimal satu pengali volume > 0!`,
+                        );
+                        return false;
+                    }
+                } else if ((item.quantity || 0) <= 0) {
+                    toast.info(
+                        `Item "${item.description || 'Belum diberi nama'}" harus memiliki jumlah > 0!`,
+                    );
+                    return false;
+                }
             }
             if (!item.unit_measure_id) {
                 toast.info('Satuan item harus dipilih!');
                 return false;
             }
-            if ((item.unit_price || 0) < 0 && !hasVendorType(item)) {
+            if (
+                (item.unit_price || 0) < 0 &&
+                !hasVendorType(item) &&
+                !hasEmployeeType(item)
+            ) {
                 toast.info('Harga satuan tidak boleh negatif!');
                 return false;
             }
+        }
+
+        return true;
+    };
+
+    for (const activity of budgetActivities.value) {
+        if (!activity.activity_id) {
+            toast.info('Kode kegiatan harus dipilih!');
+            return false;
+        }
+
+        if ((activity.children || []).length > 0) {
+            // ===== PARENT (wadah/grouping): tidak boleh punya item =====
+            if (activity.request_items.length > 0) {
+                toast.info(
+                    `Kegiatan "${activity.description || 'Belum diberi nama'}" adalah parent/grouping dan tidak boleh memiliki item!`,
+                );
+                return false;
+            }
+
+            for (const child of activity.children) {
+                if (!validateActivityBasic(child)) return false;
+                if (!validateActivityItems(child)) return false;
+            }
+        } else {
+            // ===== LEAF: punya item sendiri =====
+            if (!validateActivityBasic(activity)) return false;
+            if (!validateActivityItems(activity)) return false;
         }
     }
 
@@ -1793,7 +2815,7 @@ const goBack = () => {
                                 Rincian kegiatan yang akan dianggarkan
                             </p>
                         </div>
-                                                <div class="flex gap-2">
+                        <div class="flex gap-2">
                             <Button
                                 v-if="
                                     !isReadOnly &&
@@ -2077,8 +3099,7 @@ const goBack = () => {
                                                 .autoMatchSummary.activities >
                                                 0 ||
                                                 activityPreviewData
-                                                    .autoMatchSummary.items >
-                                                    0)
+                                                    .autoMatchSummary.items > 0)
                                         "
                                         class="rounded-md border bg-blue-50 p-2 dark:bg-blue-950/20"
                                     >
@@ -2333,12 +3354,12 @@ const goBack = () => {
                                     <!-- All Valid -->
                                     <div
                                         v-if="
-                                            activityPreviewData.errors.length ===
-                                                0 &&
+                                            activityPreviewData.errors
+                                                .length === 0 &&
                                             (!activityPreviewData.invalidActivities ||
                                                 activityPreviewData
-                                                    .invalidActivities.length ===
-                                                    0)
+                                                    .invalidActivities
+                                                    .length === 0)
                                         "
                                         class="flex items-center justify-center gap-2 rounded-md bg-green-50 p-2 text-sm text-green-700 dark:bg-green-950/20 dark:text-green-400"
                                     >
@@ -2416,34 +3437,57 @@ const goBack = () => {
                             </TableHeader>
                             <TableBody>
                                 <template
-                                    v-for="(
-                                        activity, index
-                                    ) in budgetActivities"
-                                    :key="activity.id"
+                                    v-for="(row, rowIndex) in displayRows"
+                                    :key="row.activity.id"
                                 >
-                                    <TableRow>
-                                        <TableCell class="font-medium">{{
-                                            index + 1
-                                        }}</TableCell>
-                                        <TableCell>
-                                            <ActivitySelect
-                                                v-model="activity.activity_id"
-                                                @select="
-                                                    (selected) =>
-                                                        updateActivityData(
-                                                            index,
-                                                            selected,
-                                                        )
+                                    <TableRow
+                                        :class="
+                                            row.level === 1
+                                                ? 'bg-muted/30'
+                                                : ''
+                                        "
+                                    >
+                                        <TableCell class="font-medium">
+                                            <span
+                                                :class="
+                                                    row.level === 1
+                                                        ? 'inline-block pl-6'
+                                                        : ''
                                                 "
-                                                :disabled="isReadOnly"
-                                                :searchable="true"
-                                                :unit-id="formData.unit_id"
-                                                placeholder="Pilih Kode Kegiatan"
-                                            />
+                                                >{{ rowIndex + 1 }}</span
+                                            >
+                                        </TableCell>
+                                        <TableCell>
+                                            <div
+                                                :class="
+                                                    row.level === 1
+                                                        ? 'pl-8'
+                                                        : ''
+                                                "
+                                            >
+                                                <ActivitySelect
+                                                    v-model="
+                                                        row.activity.activity_id
+                                                    "
+                                                    @select="
+                                                        (selected) =>
+                                                            updateActivityData(
+                                                                row.activity,
+                                                                selected,
+                                                            )
+                                                    "
+                                                    :disabled="isReadOnly"
+                                                    :searchable="true"
+                                                    :unit-id="formData.unit_id"
+                                                    placeholder="Pilih Kode Kegiatan"
+                                                />
+                                            </div>
                                         </TableCell>
                                         <TableCell>
                                             <Input
-                                                v-model="activity.start_date"
+                                                v-model="
+                                                    row.activity.start_date
+                                                "
                                                 type="date"
                                                 class="w-full"
                                                 :disabled="isReadOnly"
@@ -2451,7 +3495,7 @@ const goBack = () => {
                                         </TableCell>
                                         <TableCell>
                                             <Input
-                                                v-model="activity.end_date"
+                                                v-model="row.activity.end_date"
                                                 type="date"
                                                 class="w-full"
                                                 :disabled="isReadOnly"
@@ -2461,36 +3505,61 @@ const goBack = () => {
                                             >Rp
                                             {{
                                                 formatCurrency(
-                                                    activity.total_amount,
+                                                    row.activity.total_amount,
                                                 )
                                             }}</TableCell
                                         >
                                         <TableCell>
                                             <div class="flex gap-1">
+                                                <!-- Untuk top-level/parent: tambah sub-kegiatan -->
                                                 <Button
+                                                    v-if="row.level === 0"
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    @click="
+                                                        addChildActivity(
+                                                            row.activity,
+                                                        )
+                                                    "
+                                                    class="gap-1"
+                                                    title="Tambah sub-kegiatan"
+                                                    :disabled="isReadOnly"
+                                                >
+                                                    <Plus class="h-4 w-4" />
+                                                </Button>
+
+                                                <!-- Untuk leaf/child: expand detail item -->
+                                                <Button
+                                                    v-if="
+                                                        row.activity.children
+                                                            .length === 0
+                                                    "
                                                     type="button"
                                                     variant="ghost"
                                                     size="sm"
                                                     @click="
                                                         toggleActivityDetail(
-                                                            index,
+                                                            row.activity,
                                                         )
                                                     "
                                                     :title="
-                                                        activity.showItems
+                                                        row.activity.showItems
                                                             ? 'Sembunyikan detail'
                                                             : 'Lihat detail'
                                                     "
                                                 >
                                                     <ChevronDown
                                                         v-if="
-                                                            !activity.showItems
+                                                            !row.activity
+                                                                .showItems
                                                         "
                                                         class="h-4 w-4"
                                                     />
                                                     <ChevronUp
                                                         v-if="
-                                                            activity.showItems
+                                                            row.activity
+                                                                .showItems
                                                         "
                                                         class="h-4 w-4"
                                                     />
@@ -2500,7 +3569,9 @@ const goBack = () => {
                                                     variant="ghost"
                                                     size="sm"
                                                     @click="
-                                                        removeActivity(index)
+                                                        removeActivity(
+                                                            row.activity,
+                                                        )
                                                     "
                                                     class="text-destructive hover:bg-destructive/10 hover:text-destructive"
                                                     title="Hapus kegiatan"
@@ -2514,7 +3585,10 @@ const goBack = () => {
 
                                     <!-- Activity Item Details (Expanded Row) -->
                                     <TableRow
-                                        v-if="activity.showItems"
+                                        v-if="
+                                            row.activity.showItems &&
+                                            row.activity.children.length === 0
+                                        "
                                         class="bg-muted/50"
                                     >
                                         <TableCell colspan="7" class="p-4">
@@ -2530,7 +3604,8 @@ const goBack = () => {
                                                             class="font-bold text-red-600 dark:text-red-400"
                                                         >
                                                             {{
-                                                                activity.description ||
+                                                                row.activity
+                                                                    .description ||
                                                                 'Belum diberi nama'
                                                             }}
                                                         </span>
@@ -2542,7 +3617,7 @@ const goBack = () => {
                                                         size="sm"
                                                         @click="
                                                             addNewActivityItem(
-                                                                index,
+                                                                row.activity,
                                                             )
                                                         "
                                                         class="gap-1 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
@@ -2568,8 +3643,8 @@ const goBack = () => {
                                                                     Anggaran</TableHead
                                                                 >
                                                                 <TableHead
-                                                                    class="w-28"
-                                                                    >Volume</TableHead
+                                                                    class="w-48"
+                                                                    >Rincian Volume</TableHead
                                                                 >
                                                                 <TableHead
                                                                     class="w-48"
@@ -2577,8 +3652,7 @@ const goBack = () => {
                                                                 >
                                                                 <TableHead
                                                                     class="w-40"
-                                                                    >Biaya
-                                                                    Diajukan</TableHead
+                                                                    >Biaya Satuan</TableHead
                                                                 >
                                                                 <TableHead
                                                                     class="w-40"
@@ -2596,7 +3670,7 @@ const goBack = () => {
                                                                 v-for="(
                                                                     item,
                                                                     itemIndex
-                                                                ) in activity.request_items"
+                                                                ) in row.activity.request_items"
                                                                 :key="item.id"
                                                             >
                                                                 <TableRow>
@@ -2617,7 +3691,7 @@ const goBack = () => {
                                                                                     selectedItem,
                                                                                 ) =>
                                                                                     updateActivityItem(
-                                                                                        index,
+                                                                                        row.activity,
                                                                                         itemIndex,
                                                                                         selectedItem,
                                                                                     )
@@ -2633,7 +3707,24 @@ const goBack = () => {
                                                                         />
                                                                     </TableCell>
                                                                     <TableCell>
+                                                                        <span
+                                                                            v-if="
+                                                                                hasVendorType(
+                                                                                    item,
+                                                                                ) ||
+                                                                                hasEmployeeType(
+                                                                                    item,
+                                                                                )
+                                                                            "
+                                                                            class="text-xs text-muted-foreground"
+                                                                        >
+                                                                            -
+                                                                        </span>
                                                                         <Input
+                                                                            v-else-if="
+                                                                                item.calculation_mode !==
+                                                                                'detailed'
+                                                                            "
                                                                             v-model="
                                                                                 item.quantity
                                                                             "
@@ -2642,21 +3733,44 @@ const goBack = () => {
                                                                             step="1"
                                                                             @input="
                                                                                 debouncedCalculateItemTotal(
-                                                                                    activity.id,
+                                                                                    row.activity.id,
                                                                                     item.id,
                                                                                 )
                                                                             "
                                                                             class="w-full"
                                                                             :disabled="
-                                                                                isReadOnly ||
+                                                                                isReadOnly
+                                                                            "
+                                                                        />
+                                                                        <span
+                                                                            v-else
+                                                                            class="text-xs"
+                                                                        >
+                                                                            {{
+                                                                                formatFormula(
+                                                                                    item,
+                                                                                )
+                                                                            }}
+                                                                        </span>
+                                                                    </TableCell>
+                                                                    <TableCell>
+                                                                        <span
+                                                                            v-if="
+                                                                                item.calculation_mode ===
+                                                                                    'detailed' ||
                                                                                 hasVendorType(
+                                                                                    item,
+                                                                                ) ||
+                                                                                hasEmployeeType(
                                                                                     item,
                                                                                 )
                                                                             "
-                                                                        />
-                                                                    </TableCell>
-                                                                    <TableCell>
+                                                                            class="text-xs text-muted-foreground"
+                                                                        >
+                                                                            -
+                                                                        </span>
                                                                         <Input
+                                                                            v-else
                                                                             v-model="
                                                                                 item.unit_measure_name
                                                                             "
@@ -2684,7 +3798,7 @@ const goBack = () => {
                                                                                 @input="
                                                                                     handleUnitPrice(
                                                                                         $event,
-                                                                                        activity.id,
+                                                                                        row.activity.id,
                                                                                         item,
                                                                                     )
                                                                                 "
@@ -2692,6 +3806,9 @@ const goBack = () => {
                                                                                 :disabled="
                                                                                     isReadOnly ||
                                                                                     hasVendorType(
+                                                                                        item,
+                                                                                    ) ||
+                                                                                    hasEmployeeType(
                                                                                         item,
                                                                                     )
                                                                                 "
@@ -2709,8 +3826,124 @@ const goBack = () => {
                                                                     >
                                                                     <TableCell>
                                                                         <div
-                                                                            class="flex gap-1"
+                                                                            class="flex items-center gap-1"
                                                                         >
+                                                                            <div
+                                                                                style="
+                                                                                    display: inline-flex;
+                                                                                    align-items: center;
+                                                                                    gap: 8px;
+                                                                                "
+                                                                            >
+                                                                                <Switch
+                                                                                    v-if="
+                                                                                        !hasVendorType(
+                                                                                            item,
+                                                                                        ) &&
+                                                                                        !hasEmployeeType(
+                                                                                            item,
+                                                                                        )
+                                                                                    "
+                                                                                    :model-value="
+                                                                                        item.calculation_mode ===
+                                                                                        'detailed'
+                                                                                    "
+                                                                                    :disabled="
+                                                                                        isReadOnly
+                                                                                    "
+                                                                                    title="Rincian pengali volume"
+                                                                                    @update:model-value="
+                                                                                        (
+                                                                                            v,
+                                                                                        ) =>
+                                                                                            toggleItemMode(
+                                                                                                item,
+                                                                                                row.activity.id,
+                                                                                                v,
+                                                                                            )
+                                                                                    "
+                                                                                />
+
+                                                                                <!-- <span
+                                                                                    v-if="
+                                                                                        !hasVendorType(
+                                                                                            item,
+                                                                                        )
+                                                                                    "
+                                                                                    :style="{
+                                                                                        color: isReadOnly
+                                                                                            ? '#9ca3af'
+                                                                                            : 'inherit',
+                                                                                    }"
+                                                                                >
+                                                                                    Rincian Volume
+                                                                                </span> -->
+                                                                            </div>
+                                                                            <Button
+                                                                                v-if="
+                                                                                    !hasVendorType(
+                                                                                        item,
+                                                                                    ) &&
+                                                                                    !hasEmployeeType(
+                                                                                        item,
+                                                                                    ) &&
+                                                                                    item.calculation_mode ===
+                                                                                        'detailed'
+                                                                                "
+                                                                                type="button"
+                                                                                variant="outline"
+                                                                                size="sm"
+                                                                                @click="
+                                                                                    toggleMultiplierPanel(
+                                                                                        row.activity,
+                                                                                        itemIndex,
+                                                                                    )
+                                                                                "
+                                                                                class="gap-1"
+                                                                                :class="
+                                                                                    showMultiplierPanel &&
+                                                                                    currentMultiplierActivityId ===
+                                                                                        row.activity.id &&
+                                                                                    currentMultiplierItemIndex ===
+                                                                                        itemIndex
+                                                                                        ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
+                                                                                        : 'border-blue-300 text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20'
+                                                                                "
+                                                                                :title="`Pengali (${item.multipliers?.length || 0} pengali)`"
+                                                                            >
+                                                                                <Calculator
+                                                                                    class="h-3 w-3"
+                                                                                />
+                                                                                <span
+                                                                                    class="text-xs"
+                                                                                    >Pengali Volume</span
+                                                                                >
+                                                                                <span
+                                                                                    v-if="
+                                                                                        item.multipliers &&
+                                                                                        item
+                                                                                            .multipliers
+                                                                                            .length >
+                                                                                            0
+                                                                                    "
+                                                                                    class="ml-1 rounded-full px-1.5 text-xs font-medium"
+                                                                                    :class="
+                                                                                        showMultiplierPanel &&
+                                                                                        currentMultiplierActivityId ===
+                                                                                            row.activity.id &&
+                                                                                        currentMultiplierItemIndex ===
+                                                                                            itemIndex
+                                                                                            ? 'bg-blue-200 text-blue-800 dark:bg-blue-800 dark:text-blue-200'
+                                                                                            : 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
+                                                                                    "
+                                                                                >
+                                                                                    {{
+                                                                                        item
+                                                                                            .multipliers
+                                                                                            .length
+                                                                                    }}
+                                                                                </span>
+                                                                            </Button>
                                                                             <Button
                                                                                 v-if="
                                                                                     hasVendorType(
@@ -2722,15 +3955,15 @@ const goBack = () => {
                                                                                 size="sm"
                                                                                 @click="
                                                                                     toggleGoodsPanel(
-                                                                                        index,
+                                                                                        row.activity,
                                                                                         itemIndex,
                                                                                     )
                                                                                 "
                                                                                 class="gap-1"
                                                                                 :class="
                                                                                     showGoodsPanel &&
-                                                                                    currentActivityIndex ===
-                                                                                        index &&
+                                                                                    currentGoodsActivityId ===
+                                                                                        row.activity.id &&
                                                                                     currentItemIndex ===
                                                                                         itemIndex
                                                                                         ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
@@ -2756,8 +3989,8 @@ const goBack = () => {
                                                                                     class="ml-1 rounded-full px-1.5 text-xs font-medium"
                                                                                     :class="
                                                                                         showGoodsPanel &&
-                                                                                        currentActivityIndex ===
-                                                                                            index &&
+                                                                                        currentGoodsActivityId ===
+                                                                                            row.activity.id &&
                                                                                         currentItemIndex ===
                                                                                             itemIndex
                                                                                             ? 'bg-blue-200 text-blue-800 dark:bg-blue-800 dark:text-blue-200'
@@ -2772,12 +4005,72 @@ const goBack = () => {
                                                                                 </span>
                                                                             </Button>
                                                                             <Button
+                                                                                v-if="
+                                                                                    hasEmployeeType(
+                                                                                        item,
+                                                                                    )
+                                                                                "
+                                                                                type="button"
+                                                                                variant="outline"
+                                                                                size="sm"
+                                                                                @click="
+                                                                                    toggleEmployeePanel(
+                                                                                        row.activity,
+                                                                                        itemIndex,
+                                                                                    )
+                                                                                "
+                                                                                class="gap-1"
+                                                                                :class="
+                                                                                    showEmployeePanel &&
+                                                                                    currentEmployeeActivityId ===
+                                                                                        row.activity.id &&
+                                                                                    currentEmployeeItemIndex ===
+                                                                                        itemIndex
+                                                                                        ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
+                                                                                        : 'border-blue-300 text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20'
+                                                                                "
+                                                                                :title="`Dosen (${item.employees?.length || 0} dosen)`"
+                                                                            >
+                                                                                <Users
+                                                                                    class="h-3 w-3"
+                                                                                />
+                                                                                <span
+                                                                                    class="text-xs"
+                                                                                    >Dosen</span
+                                                                                >
+                                                                                <span
+                                                                                    v-if="
+                                                                                        item.employees &&
+                                                                                        item
+                                                                                            .employees
+                                                                                            .length >
+                                                                                            0
+                                                                                    "
+                                                                                    class="ml-1 rounded-full px-1.5 text-xs font-medium"
+                                                                                    :class="
+                                                                                        showEmployeePanel &&
+                                                                                        currentEmployeeActivityId ===
+                                                                                            row.activity.id &&
+                                                                                        currentEmployeeItemIndex ===
+                                                                                            itemIndex
+                                                                                            ? 'bg-blue-200 text-blue-800 dark:bg-blue-800 dark:text-blue-200'
+                                                                                            : 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
+                                                                                    "
+                                                                                >
+                                                                                    {{
+                                                                                        item
+                                                                                            .employees
+                                                                                            .length
+                                                                                    }}
+                                                                                </span>
+                                                                            </Button>
+                                                                            <Button
                                                                                 type="button"
                                                                                 variant="ghost"
                                                                                 size="sm"
                                                                                 @click="
                                                                                     removeActivityItem(
-                                                                                        index,
+                                                                                        row.activity,
                                                                                         itemIndex,
                                                                                     )
                                                                                 "
@@ -2799,8 +4092,8 @@ const goBack = () => {
                                                                 <TableRow
                                                                     v-if="
                                                                         showGoodsPanel &&
-                                                                        currentActivityIndex ===
-                                                                            index &&
+                                                                        currentGoodsActivityId ===
+                                                                            row.activity.id &&
                                                                         currentItemIndex ===
                                                                             itemIndex
                                                                     "
@@ -2830,7 +4123,7 @@ const goBack = () => {
                                                                                     goods,
                                                                                 ) =>
                                                                                     updateItemGoods(
-                                                                                        index,
+                                                                                        row.activity,
                                                                                         itemIndex,
                                                                                         goods,
                                                                                     )
@@ -2839,10 +4132,646 @@ const goBack = () => {
                                                                     </TableCell>
                                                                 </TableRow>
                                                                 <!-- END GOODS PANEL -->
+
+                                                                <!-- EMPLOYEE PANEL (Inline — tipe EMPLOYEE) -->
+                                                                <TableRow
+                                                                    v-if="
+                                                                        showEmployeePanel &&
+                                                                        currentEmployeeActivityId ===
+                                                                            row.activity.id &&
+                                                                        currentEmployeeItemIndex ===
+                                                                            itemIndex
+                                                                    "
+                                                                    class="bg-blue-50/50 dark:bg-blue-950/20"
+                                                                >
+                                                                    <TableCell
+                                                                        colspan="7"
+                                                                        class="p-0"
+                                                                    >
+                                                                        <div
+                                                                            class="border-t-2 border-blue-200 p-4 dark:border-blue-800"
+                                                                        >
+                                                                            <!-- Panel Header -->
+                                                                            <div
+                                                                                class="mb-3 flex items-center justify-between"
+                                                                            >
+                                                                                <div
+                                                                                    class="flex items-center gap-2"
+                                                                                >
+                                                                                    <Users
+                                                                                        class="h-5 w-5 text-blue-600 dark:text-blue-400"
+                                                                                    />
+                                                                                    <h5
+                                                                                        class="font-semibold text-foreground"
+                                                                                    >
+                                                                                        Data
+                                                                                        Dosen:
+                                                                                        {{
+                                                                                            item.description ||
+                                                                                            'Item'
+                                                                                        }}
+                                                                                    </h5>
+                                                                                </div>
+                                                                                <Button
+                                                                                    type="button"
+                                                                                    variant="ghost"
+                                                                                    size="sm"
+                                                                                    @click="
+                                                                                        closeEmployeePanel
+                                                                                    "
+                                                                                    class="text-muted-foreground hover:text-foreground"
+                                                                                >
+                                                                                    <ChevronUp
+                                                                                        class="h-4 w-4"
+                                                                                    />
+                                                                                </Button>
+                                                                            </div>
+
+                                                                            <!-- Upload Excel Dosen (fitur seperti upload barang VENDOR) -->
+                                                                            <div
+                                                                                v-if="
+                                                                                    !isReadOnly
+                                                                                "
+                                                                                class="mb-3 flex flex-wrap items-center gap-2"
+                                                                            >
+                                                                                <Button
+                                                                                    type="button"
+                                                                                    variant="outline"
+                                                                                    size="sm"
+                                                                                    @click="
+                                                                                        downloadEmployeeTemplate
+                                                                                    "
+                                                                                    class="gap-1"
+                                                                                >
+                                                                                    <Download
+                                                                                        class="h-3 w-3"
+                                                                                    />
+                                                                                    Template
+                                                                                    Dosen
+                                                                                </Button>
+                                                                                <div
+                                                                                    class="relative flex min-w-[280px] flex-1 cursor-pointer rounded-md border border-dashed px-4 py-2 transition-colors"
+                                                                                    :class="
+                                                                                        isEmployeeDragOver
+                                                                                            ? 'border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-950/30'
+                                                                                            : employeeUploadFile
+                                                                                              ? 'border-green-400 bg-green-50 dark:border-green-600 dark:bg-green-950/20'
+                                                                                              : 'border-muted-foreground/25 hover:border-blue-400 hover:bg-accent/50'
+                                                                                    "
+                                                                                    @dragover="
+                                                                                        handleEmployeeDragOver
+                                                                                    "
+                                                                                    @dragleave="
+                                                                                        handleEmployeeDragLeave
+                                                                                    "
+                                                                                    @drop="
+                                                                                        handleEmployeeDrop(
+                                                                                            $event,
+                                                                                            row.activity,
+                                                                                            item,
+                                                                                        )
+                                                                                    "
+                                                                                >
+                                                                                    <input
+                                                                                        type="file"
+                                                                                        accept=".csv,.xls,.xlsx"
+                                                                                        class="absolute inset-0 cursor-pointer opacity-0"
+                                                                                        @change="
+                                                                                            handleEmployeeFileInputChange(
+                                                                                                $event,
+                                                                                                row.activity,
+                                                                                                item,
+                                                                                            )
+                                                                                        "
+                                                                                    />
+                                                                                    <div
+                                                                                        v-if="
+                                                                                            employeeUploadFile
+                                                                                        "
+                                                                                        class="flex items-center justify-between gap-2"
+                                                                                    >
+                                                                                        <div
+                                                                                            class="flex items-center gap-2 text-xs"
+                                                                                        >
+                                                                                            <FileSpreadsheet
+                                                                                                class="h-4 w-4 shrink-0 text-green-600 dark:text-green-400"
+                                                                                            />
+                                                                                            <span
+                                                                                                class="max-w-[200px] truncate font-medium"
+                                                                                                >{{
+                                                                                                    employeeUploadFile.name
+                                                                                                }}</span
+                                                                                            >
+                                                                                            <span
+                                                                                                class="text-muted-foreground"
+                                                                                                >{{
+                                                                                                    formatFileSize(
+                                                                                                        employeeUploadFile.size,
+                                                                                                    )
+                                                                                                }}</span
+                                                                                            >
+                                                                                        </div>
+                                                                                        <button
+                                                                                            type="button"
+                                                                                            class="text-muted-foreground hover:text-destructive"
+                                                                                            @click.stop="
+                                                                                                clearEmployeeUploadFile
+                                                                                            "
+                                                                                        >
+                                                                                            <X
+                                                                                                class="h-3 w-3"
+                                                                                            />
+                                                                                        </button>
+                                                                                    </div>
+                                                                                    <div
+                                                                                        v-else
+                                                                                        class="flex items-center gap-2 text-xs text-muted-foreground"
+                                                                                    >
+                                                                                        <Upload
+                                                                                            class="h-4 w-4 shrink-0"
+                                                                                        />
+                                                                                        Drag
+                                                                                        &
+                                                                                        drop
+                                                                                        atau
+                                                                                        klik
+                                                                                        untuk
+                                                                                        upload
+                                                                                        dosen
+                                                                                        (CSV/Excel,
+                                                                                        max
+                                                                                        5MB)
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+
+                                                                            <!-- Toolbar -->
+                                                                            <div
+                                                                                v-if="
+                                                                                    !isReadOnly
+                                                                                "
+                                                                                class="mb-3 flex flex-wrap items-center gap-2"
+                                                                            >
+                                                                                <Select
+                                                                                    :model-value="
+                                                                                        ''
+                                                                                    "
+                                                                                    @update:model-value="
+                                                                                        (
+                                                                                            v,
+                                                                                        ) =>
+                                                                                            handleAddEmployeeFromMaster(
+                                                                                                row.activity,
+                                                                                                item,
+                                                                                                String(
+                                                                                                    v,
+                                                                                                ),
+                                                                                            )
+                                                                                    "
+                                                                                >
+                                                                                    <SelectTrigger
+                                                                                        class="w-80"
+                                                                                    >
+                                                                                        <SelectValue
+                                                                                            placeholder="Pilih dosen dari master pegawai"
+                                                                                        />
+                                                                                    </SelectTrigger>
+                                                                                    <SelectContent>
+                                                                                        <SelectItem
+                                                                                            v-for="emp in cachedEmployees"
+                                                                                            :key="
+                                                                                                emp.id
+                                                                                            "
+                                                                                            :value="
+                                                                                                String(
+                                                                                                    emp.id,
+                                                                                                )
+                                                                                            "
+                                                                                        >
+                                                                                            <span>
+                                                                                                {{
+                                                                                                    emp.name ||
+                                                                                                    emp.employee_name
+                                                                                                }}
+                                                                                            </span>
+                                                                                            <span
+                                                                                                class="ml-2 text-xs text-muted-foreground"
+                                                                                            >
+                                                                                                {{
+                                                                                                    emp.nik
+                                                                                                }}
+                                                                                            </span>
+                                                                                        </SelectItem>
+                                                                                        <SelectItem
+                                                                                            v-if="
+                                                                                                cachedEmployees.length ===
+                                                                                                0
+                                                                                            "
+                                                                                            value="-"
+                                                                                        >
+                                                                                            Tidak
+                                                                                            ada
+                                                                                            data
+                                                                                            pegawai
+                                                                                        </SelectItem>
+                                                                                    </SelectContent>
+                                                                                </Select>
+                                                                                <Button
+                                                                                    type="button"
+                                                                                    variant="default"
+                                                                                    size="sm"
+                                                                                    @click="
+                                                                                        addEmployeeRow(
+                                                                                            row.activity,
+                                                                                            item,
+                                                                                        )
+                                                                                    "
+                                                                                    class="gap-1"
+                                                                                >
+                                                                                    <Plus
+                                                                                        class="h-4 w-3"
+                                                                                    />
+                                                                                    Tambah
+                                                                                    Dosen
+                                                                                    Manual
+                                                                                </Button>
+                                                                            </div>
+
+                                                                            <!-- Tabel Dosen -->
+                                                                            <div
+                                                                                class="rounded-md border bg-background"
+                                                                            >
+                                                                                <Table>
+                                                                                    <TableHeader>
+                                                                                        <TableRow>
+                                                                                            <TableHead
+                                                                                                class="w-10"
+                                                                                                >No</TableHead
+                                                                                            >
+                                                                                            <TableHead
+                                                                                                class="w-28"
+                                                                                                >NIK</TableHead
+                                                                                            >
+                                                                                            <TableHead
+                                                                                                class="w-44"
+                                                                                                >Nama
+                                                                                                Dosen</TableHead
+                                                                                            >
+                                                                                            <TableHead
+                                                                                                class="w-36"
+                                                                                                >Jabatan
+                                                                                                Fungsional</TableHead
+                                                                                            >
+                                                                                            <TableHead
+                                                                                                class="w-28"
+                                                                                                >Jam
+                                                                                                Mengajar</TableHead
+                                                                                            >
+                                                                                            <TableHead
+                                                                                                class="w-20"
+                                                                                                >Kelas</TableHead
+                                                                                            >
+                                                                                            <TableHead
+                                                                                                class="w-32"
+                                                                                                >Tarif</TableHead
+                                                                                            >
+                                                                                            <TableHead
+                                                                                                class="w-32"
+                                                                                                >Total</TableHead
+                                                                                            >
+                                                                                            <TableHead
+                                                                                                class="w-40"
+                                                                                                >Keterangan</TableHead
+                                                                                            >
+                                                                                            <TableHead
+                                                                                                class="w-20"
+                                                                                                >Aksi</TableHead
+                                                                                            >
+                                                                                        </TableRow>
+                                                                                    </TableHeader>
+                                                                                    <TableBody>
+                                                                                        <TableRow
+                                                                                            v-for="(
+                                                                                                emp,
+                                                                                                eIndex
+                                                                                            ) in item.employees ||
+                                                                                                []"
+                                                                                            :key="
+                                                                                                eIndex
+                                                                                            "
+                                                                                        >
+                                                                                            <TableCell
+                                                                                                class="font-medium"
+                                                                                                >{{
+                                                                                                    eIndex +
+                                                                                                    1
+                                                                                                }}</TableCell
+                                                                                            >
+                                                                                            <TableCell>
+                                                                                                <Input
+                                                                                                    v-model="
+                                                                                                        emp.nik
+                                                                                                    "
+                                                                                                    :disabled="
+                                                                                                        isReadOnly
+                                                                                                    "
+                                                                                                    placeholder="NIK"
+                                                                                                    class="w-full"
+                                                                                                />
+                                                                                            </TableCell>
+                                                                                            <TableCell>
+                                                                                                <Input
+                                                                                                    v-model="
+                                                                                                        emp.employee_name
+                                                                                                    "
+                                                                                                    :disabled="
+                                                                                                        isReadOnly
+                                                                                                    "
+                                                                                                    placeholder="Nama dosen"
+                                                                                                    class="w-full"
+                                                                                                />
+                                                                                            </TableCell>
+                                                                                            <TableCell>
+                                                                                                <Input
+                                                                                                    v-model="
+                                                                                                        emp.functional_position
+                                                                                                    "
+                                                                                                    :disabled="
+                                                                                                        isReadOnly
+                                                                                                    "
+                                                                                                    placeholder="Lektor"
+                                                                                                    class="w-full"
+                                                                                                />
+                                                                                            </TableCell>
+                                                                                            <TableCell>
+                                                                                                <Input
+                                                                                                    v-model.number="
+                                                                                                        emp.teaching_hours
+                                                                                                    "
+                                                                                                    :disabled="
+                                                                                                        isReadOnly
+                                                                                                    "
+                                                                                                    type="number"
+                                                                                                    min="0"
+                                                                                                    step="0.5"
+                                                                                                    @input="
+                                                                                                        debouncedRecalcEmployeeItem(
+                                                                                                            row
+                                                                                                                .activity
+                                                                                                                .id,
+                                                                                                            item.id,
+                                                                                                        )
+                                                                                                    "
+                                                                                                    class="w-full"
+                                                                                                />
+                                                                                            </TableCell>
+                                                                                            <TableCell>
+                                                                                                <Input
+                                                                                                    v-model.number="
+                                                                                                        emp.class_count
+                                                                                                    "
+                                                                                                    :disabled="
+                                                                                                        isReadOnly
+                                                                                                    "
+                                                                                                    type="number"
+                                                                                                    min="0"
+                                                                                                    step="1"
+                                                                                                    @input="
+                                                                                                        debouncedRecalcEmployeeItem(
+                                                                                                            row
+                                                                                                                .activity
+                                                                                                                .id,
+                                                                                                            item.id,
+                                                                                                        )
+                                                                                                    "
+                                                                                                    class="w-full"
+                                                                                                />
+                                                                                            </TableCell>
+                                                                                            <TableCell>
+                                                                                                <div
+                                                                                                    class="relative"
+                                                                                                >
+                                                                                                    <span
+                                                                                                        class="absolute top-2 left-3 text-muted-foreground"
+                                                                                                        >Rp</span
+                                                                                                    >
+                                                                                                    <Input
+                                                                                                        :model-value="
+                                                                                                            formatPrice(
+                                                                                                                emp.rate,
+                                                                                                            )
+                                                                                                        "
+                                                                                                        type="text"
+                                                                                                        placeholder="0"
+                                                                                                        @input="
+                                                                                                            handleEmployeeRate(
+                                                                                                                $event,
+                                                                                                                row
+                                                                                                                    .activity
+                                                                                                                    .id,
+                                                                                                                item.id,
+                                                                                                                eIndex,
+                                                                                                            )
+                                                                                                        "
+                                                                                                        class="w-full pl-10"
+                                                                                                        :disabled="
+                                                                                                            isReadOnly
+                                                                                                        "
+                                                                                                    />
+                                                                                                </div>
+                                                                                            </TableCell>
+                                                                                            <TableCell
+                                                                                                class="text-right font-medium"
+                                                                                                >Rp
+                                                                                                {{
+                                                                                                    formatCurrency(
+                                                                                                        emp.total,
+                                                                                                    )
+                                                                                                }}</TableCell
+                                                                                            >
+                                                                                            <TableCell>
+                                                                                                <Input
+                                                                                                    v-model="
+                                                                                                        emp.notes
+                                                                                                    "
+                                                                                                    :disabled="
+                                                                                                        isReadOnly
+                                                                                                    "
+                                                                                                    placeholder="Keterangan"
+                                                                                                    class="w-full"
+                                                                                                />
+                                                                                            </TableCell>
+                                                                                            <TableCell>
+                                                                                                <div
+                                                                                                    class="flex gap-1"
+                                                                                                >
+                                                                                                    <Button
+                                                                                                        v-if="
+                                                                                                            !isReadOnly
+                                                                                                        "
+                                                                                                        type="button"
+                                                                                                        variant="ghost"
+                                                                                                        size="sm"
+                                                                                                        @click="
+                                                                                                            removeEmployeeRow(
+                                                                                                                row.activity,
+                                                                                                                item,
+                                                                                                                eIndex,
+                                                                                                            )
+                                                                                                        "
+                                                                                                        class="text-destructive hover:bg-destructive/10"
+                                                                                                        title="Hapus baris dosen"
+                                                                                                    >
+                                                                                                        <Trash2
+                                                                                                            class="h-3 w-3"
+                                                                                                        />
+                                                                                                    </Button>
+                                                                                                </div>
+                                                                                            </TableCell>
+                                                                                        </TableRow>
+                                                                                        <TableRow
+                                                                                            v-if="
+                                                                                                !item.employees ||
+                                                                                                item
+                                                                                                    .employees
+                                                                                                    .length ===
+                                                                                                    0
+                                                                                            "
+                                                                                        >
+                                                                                            <TableCell
+                                                                                                colspan="10"
+                                                                                                class="py-8 text-center text-muted-foreground"
+                                                                                            >
+                                                                                                <div
+                                                                                                    class="flex flex-col items-center gap-2"
+                                                                                                >
+                                                                                                    <Users
+                                                                                                        class="h-8 w-8"
+                                                                                                    />
+                                                                                                    <p>
+                                                                                                        Belum
+                                                                                                        ada
+                                                                                                        dosen.
+                                                                                                        Pilih
+                                                                                                        dari
+                                                                                                        master
+                                                                                                        pegawai
+                                                                                                        atau
+                                                                                                        klik
+                                                                                                        "Tambah
+                                                                                                        Dosen".
+                                                                                                    </p>
+                                                                                                </div>
+                                                                                            </TableCell>
+                                                                                        </TableRow>
+                                                                                    </TableBody>
+                                                                                </Table>
+                                                                            </div>
+
+                                                                            <!-- Summary -->
+                                                                            <div
+                                                                                v-if="
+                                                                                    item.employees &&
+                                                                                    item
+                                                                                        .employees
+                                                                                        .length >
+                                                                                        0
+                                                                                "
+                                                                                class="mt-3 flex justify-end"
+                                                                            >
+                                                                                <div
+                                                                                    class="w-72 space-y-1 rounded border bg-muted p-2 text-sm"
+                                                                                >
+                                                                                    <div
+                                                                                        class="flex justify-between"
+                                                                                    >
+                                                                                        <span
+                                                                                            class="text-muted-foreground"
+                                                                                            >Jumlah
+                                                                                            Dosen:</span
+                                                                                        >
+                                                                                        <span
+                                                                                            class="font-medium"
+                                                                                            >{{
+                                                                                                item
+                                                                                                    .employees
+                                                                                                    .length
+                                                                                            }}</span
+                                                                                        >
+                                                                                    </div>
+                                                                                    <div
+                                                                                        class="flex justify-between border-t pt-1"
+                                                                                    >
+                                                                                        <span
+                                                                                            class="font-medium text-foreground"
+                                                                                            >Total
+                                                                                            Honorarium:</span
+                                                                                        >
+                                                                                        <span
+                                                                                            class="font-bold text-primary"
+                                                                                            >Rp
+                                                                                            {{
+                                                                                                formatCurrency(
+                                                                                                    item.total_price,
+                                                                                                )
+                                                                                            }}</span
+                                                                                        >
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </TableCell>
+                                                                </TableRow>
+                                                                <!-- END EMPLOYEE PANEL -->
+
+                                                                <!-- MULTIPLIER PANEL -->
+                                                                <TableRow
+                                                                    v-if="
+                                                                        showMultiplierPanel &&
+                                                                        currentMultiplierActivityId ===
+                                                                            row.activity.id &&
+                                                                        currentMultiplierItemIndex ===
+                                                                            itemIndex
+                                                                    "
+                                                                    class="bg-blue-50/50 dark:bg-blue-950/20"
+                                                                >
+                                                                    <TableCell
+                                                                        colspan="7"
+                                                                        class="p-0"
+                                                                    >
+                                                                        <MultiplierPanel
+                                                                            :item-description="
+                                                                                item.description ||
+                                                                                'Item'
+                                                                            "
+                                                                            :multipliers="
+                                                                                item.multipliers ||
+                                                                                []
+                                                                            "
+                                                                            :is-read-only="
+                                                                                isReadOnly
+                                                                            "
+                                                                            @close="
+                                                                                closeMultiplierPanel
+                                                                            "
+                                                                            @update:multipliers="
+                                                                                (
+                                                                                    multipliers,
+                                                                                ) =>
+                                                                                    updateItemMultipliers(
+                                                                                        row.activity,
+                                                                                        itemIndex,
+                                                                                        multipliers,
+                                                                                    )
+                                                                            "
+                                                                        />
+                                                                    </TableCell>
+                                                                </TableRow>
+                                                                <!-- END MULTIPLIER PANEL -->
                                                             </template>
                                                             <TableRow
                                                                 v-if="
-                                                                    activity
+                                                                    row.activity
                                                                         .request_items
                                                                         .length ===
                                                                     0
@@ -2881,7 +4810,7 @@ const goBack = () => {
                                                             <span
                                                                 class="font-medium"
                                                                 >{{
-                                                                    activity
+                                                                    row.activity
                                                                         .request_items
                                                                         .length
                                                                 }}</span
@@ -2900,7 +4829,7 @@ const goBack = () => {
                                                                 >Rp
                                                                 {{
                                                                     formatCurrency(
-                                                                        activity.total_amount,
+                                                                        row.activity.total_amount,
                                                                     )
                                                                 }}</span
                                                             >
@@ -2931,7 +4860,8 @@ const goBack = () => {
                                                     <div class="space-y-2">
                                                         <Textarea
                                                             v-model="
-                                                                activity.output_indicator
+                                                                row.activity
+                                                                    .output_indicator
                                                             "
                                                             placeholder="Isikan indikator output kegiatan"
                                                             :disabled="
@@ -2974,7 +4904,7 @@ const goBack = () => {
                                                         </span>
                                                     </div>
                                                     <FileUpload
-                                                        v-model="activity.files"
+                                                        v-model="row.activity.files"
                                                         :disabled="isReadOnly"
                                                         :view-only="isReadOnly"
                                                         :max-size-mb="10"
@@ -2991,14 +4921,14 @@ const goBack = () => {
                                                         @file-added="
                                                             (file) =>
                                                                 handleFileAdded(
-                                                                    activity.id,
+                                                                    row.activity.id,
                                                                     file,
                                                                 )
                                                         "
                                                         @file-removed="
                                                             (index) =>
                                                                 handleFileRemoved(
-                                                                    activity.id,
+                                                                    row.activity.id,
                                                                     index,
                                                                 )
                                                         "
@@ -3008,19 +4938,19 @@ const goBack = () => {
                                                     />
                                                     <div
                                                         v-if="
-                                                            activity.files
+                                                            row.activity.files
                                                                 ?.length > 0
                                                         "
                                                         class="mt-2 text-xs text-muted-foreground"
                                                     >
                                                         Total
                                                         {{
-                                                            activity.files
+                                                            row.activity.files
                                                                 .length
                                                         }}
                                                         file lampiran ({{
                                                             formatTotalFileSize(
-                                                                activity.files,
+                                                                row.activity.files,
                                                             )
                                                         }})
                                                     </div>
